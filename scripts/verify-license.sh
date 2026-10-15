@@ -40,6 +40,7 @@ FAILED=()
 
 while IFS= read -r file; do
   [ -z "$file" ] && continue
+  [ -f "$file" ] || continue
   is_ignored "$file" && continue
 
   ext="${file##*.}"
@@ -78,7 +79,7 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "ERROR: The following files are missing or have invalid license headers:"
   printf '  %s\n' "${FAILED[@]}"
   echo ""
-  echo "Run 'make license-add' to fix."
+  echo "Run 'bash scripts/add-license.sh' to fix."
   exit 1
 fi
 

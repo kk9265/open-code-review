@@ -8,9 +8,8 @@
 //
 // Comments, identifiers and user-visible strings in this repository are written
 // in English so that any contributor can review and maintain every file,
-// whichever languages they happen to read. Translated content belongs in the
-// locale-specific docs (docs/i18n/README.zh-CN.md, pages/src/content/docs/zh/…)
-// and in the i18n tables, not in code.
+// whichever languages they happen to read. Translated content belongs in
+// Markdown documents and dedicated i18n tables, not inline in code.
 //
 // What it detects, and the one thing it cannot:
 //
@@ -26,8 +25,7 @@
 // Symbols are deliberately left alone: box drawing, arrows, emoji and maths
 // (─ → ≥ ≈ ×) are not letters and appear throughout the TUI output on purpose.
 //
-// Markdown is not scanned: the translated READMEs, CONTRIBUTING files and doc
-// pages are legitimately non-English.
+// Markdown is not scanned because documentation may be non-English.
 //
 // Run it directly (the build tag keeps it out of ./... so it does not affect
 // go vet, go build or the coverage threshold):
@@ -73,10 +71,7 @@ var scannedNames = map[string]bool{"Makefile": true}
 // allowedPrefixes exempts paths whose non-English content is expected. Keep
 // each entry narrow and justified; a temporary entry must say what removes it.
 var allowedPrefixes = []struct{ prefix, reason string }{
-	{"pages/src/i18n/", "translated UI copy for the docs site"},
-	{"extensions/vscode/package.nls.", "translated UI copy for the extension manifest bundles"},
-	{"extensions/frontend/src/shared/i18n.ts", "translated UI copy for the extension webview"},
-	{"extensions/idea/src/main/kotlin/com/alibaba/opencodereview/idea/model/HostStrings.kt", "host-side mirror of the webview i18n table"},
+	{"internal/platform/ui/i18n/", "Localized user-facing workbench messages; source identifiers and comments remain English."},
 }
 
 // exemptMarker on a line suppresses the report for that line. The trailing
@@ -249,8 +244,7 @@ func run() error {
 		}
 		fmt.Fprintf(os.Stderr, `
 Source files are English-only: comments, identifiers and strings alike.
-Translated prose belongs in docs/i18n/README.<locale>.md, pages/src/content/docs/<locale>/
-or an i18n table.
+Translated prose belongs in Markdown documents or dedicated i18n tables.
 
 If the non-English text is intentional — an encoding fixture, a
 language-switcher label — append a marker comment, including the reason, to

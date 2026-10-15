@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} {{t "· Review Desk"}}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<a class="skip" href="#main">{{t "Skip to content"}}</a>
+<aside class="sidebar">
+  <a class="brand" href="/"><span class="brand-mark">r/</span><span>{{t "Review Desk"}}<small>{{t "YOUR CODE, IN CONTEXT"}}</small></span></a>
+  <div class="nav-label">{{t "WORKSPACE"}}</div>
+  <nav aria-label="{{t "Main navigation"}}">
+    <a href="/" {{if eq .Page "overview"}}aria-current="page"{{end}}><span class="nav-icon">◫</span>{{t "Overview"}}</a>
+    <a href="/repositories" {{if or (eq .Page "repositories") (eq .Page "repository")}}aria-current="page"{{end}}><span class="nav-icon">⌘</span>{{t "Repositories"}}</a>
+    <a href="/gitea" {{if eq .Page "gitea"}}aria-current="page"{{end}}><span class="nav-icon">↙</span>{{t "Gitea repositories"}}</a>
+    <a href="/reviews" {{if or (eq .Page "reviews") (eq .Page "review")}}aria-current="page"{{end}}><span class="nav-icon">≡</span>{{t "Reviews"}}</a>
+    <a href="/settings" {{if eq .Page "settings"}}aria-current="page"{{end}}><span class="nav-icon">⚙</span>{{t "Settings"}}</a>
+  </nav>
+  <div class="sidebar-bottom"><span class="live-dot"></span><div>{{t "Personal workspace"}}<small>{{t "Stored on this computer"}}</small></div></div>
+</aside>
+<div class="workspace">
+  <header class="topbar"><span>{{t "Workspace"}} <span class="slash">/</span> {{.Title}}</span><span class="local-badge"><span class="live-dot"></span>{{t "LOCAL ONLY"}}</span></header>
+  <main id="main">
+    {{if .Error}}<div class="notice error" role="alert">{{.Error}}</div>{{end}}
+    {{if .Saved}}<div class="notice success" role="status">{{t "Changes saved."}}</div>{{end}}
+
+    {{if eq .Page "overview"}}
+    <div class="page-heading"><div><div class="eyebrow">{{t "YOUR PERSONAL REVIEW WORKSPACE"}}</div><h1>{{t "A clearer view of your code."}}</h1><p>{{t "Keep repositories, review context, and your next steps in one place."}}</p></div><a class="button primary" href="/repositories#add">{{t "+ Add repository"}}</a></div>
+    <div class="stats">
+      <a class="stat" href="/repositories"><span>{{t "Active repositories"}}</span><strong>{{.Counts.Repositories}}</strong><small>{{t "Your registered codebases"}} <span>↗</span></small></a>
+      <a class="stat" href="/reviews"><span>{{t "Review drafts"}}</span><strong>{{.Counts.Drafts}}</strong><small>{{t "Context ready for review"}} <span>↗</span></small></a>
+      <a class="stat" href="/reviews?archived=1"><span>{{t "Archived reviews"}}</span><strong>{{.Counts.Archived}}</strong><small>{{t "Kept for future reference"}} <span>↗</span></small></a>
+    </div>
+    <div class="overview-grid">
+      <section class="panel"><div class="panel-heading"><h2>{{t "Recent reviews"}}</h2><a class="text-link" href="/reviews">{{t "View all →"}}</a></div>
+        {{if .Reviews}}{{template "review-list" .}}{{else}}<div class="empty"><span class="empty-icon">≡</span><h3>{{t "Start with a little context."}}</h3><p>{{t "Add a repository, then save a review draft with the changes you want to examine."}}</p><a class="button secondary" href="/repositories">{{t "Choose a repository →"}}</a></div>{{end}}
+      </section>
+      <section class="panel getting-started"><div class="panel-heading"><h2>{{t "Set up your workspace"}}</h2><span class="pill">{{t "FOUNDATION"}}</span></div>
+        <a class="setup-step" href="/settings"><span class="step-number">01</span><div><strong>{{t "Set your preferences"}}</strong><p>{{t "Gitea and review defaults."}}</p></div><span>→</span></a>
+        <a class="setup-step" href="/repositories#add"><span class="step-number">02</span><div><strong>{{t "Register a repository"}}</strong><p>{{t "A web URL or local checkout."}}</p></div><span>→</span></a>
+        <a class="setup-step" href="/repositories"><span class="step-number">03</span><div><strong>{{t "Prepare a review"}}</strong><p>{{t "Capture the goal and scope."}}</p></div><span>→</span></a>
+        <div class="muted-note"><a class="text-link" href="/gitea">{{t "Import from Gitea"}} →</a><p>{{t "Import repositories and prepare drafts. AI review execution will be connected next."}}</p></div>
+      </section>
+    </div>
+    {{end}}
+
+    {{if eq .Page "gitea"}}{{template "gitea" .}}{{end}}
+
+    {{if eq .Page "repositories"}}
+    <div class="page-heading"><div><div class="eyebrow">{{t "CODEBASES"}}</div><h1>{{t "Repositories"}}</h1><p>{{t "Register the codebases you want to review."}}</p></div><a class="button primary" href="#add">{{t "+ Add repository"}}</a></div>
+    {{template "filters" .}}
+    <div class="gitea-entry"><a class="button secondary" href="/gitea">{{t "Import from Gitea"}} →</a></div>
+    <section class="panel">
+      {{if .Repositories}}<div class="table-scroll"><table><thead><tr><th>{{t "Repository"}}</th><th>{{t "Location"}}</th><th>{{t "Updated"}}</th><th></th></tr></thead><tbody>
+      {{range .Repositories}}<tr><td><a class="record-title" href="/repositories/{{.ID}}"><span class="repo-icon">⌘</span>{{.Name}}</a><span class="subtext">{{if .Archived}}{{t "Archived"}}{{else}}{{t "Registered"}}{{end}}</span></td><td class="location">{{if .RemoteURL}}{{.RemoteURL}}{{else}}{{.LocalPath}}{{end}}</td><td class="nowrap muted">{{date .UpdatedAt}}</td><td><a class="text-link" href="/repositories/{{.ID}}">{{t "Open →"}}</a></td></tr>{{end}}
+      </tbody></table></div>{{else}}<div class="empty"><span class="empty-icon">⌘</span><h3>{{if .Query}}{{t "No matching repositories."}}{{else if .Archived}}{{t "No archived repositories."}}{{else}}{{t "Your workspace starts here."}}{{end}}</h3><p>{{if .Query}}{{t "Try a different repository name."}}{{else}}{{t "Add a repository below. Registration saves its location; it does not clone or fetch code."}}{{end}}</p></div>{{end}}
+    </section>
+    {{template "pagination" .}}
+    <section class="panel form-panel" id="add"><div class="panel-heading"><div><h2>{{t "Add repository"}}</h2><p>{{t "Save a repository link or use an existing checkout."}}</p></div></div>{{template "repository-form" .}}</section>
+    {{end}}
+
+    {{if eq .Page "repository"}}
+    <a class="back-link" href="/repositories">{{t "← Repositories"}}</a>
+    <div class="page-heading"><div><div class="eyebrow">{{t "REPOSITORY DETAILS"}}</div><h1>{{if .Repository.ID}}{{.Repository.Name}}{{else}}{{t "Add repository"}}{{end}}</h1><p>{{if .Repository.Archived}}{{t "Archived. Existing review drafts are retained."}}{{else}}{{t "Manage the location and context for this codebase."}}{{end}}</p></div>{{if and .Repository.ID (not .Repository.Archived)}}<a class="button primary" href="/reviews/new?repository={{.Repository.ID}}">{{t "+ New review draft"}}</a>{{end}}</div>
+    {{if .Source}}{{template "gitea-source" .}}{{end}}
+    <section class="panel form-panel"><div class="panel-heading"><h2>{{t "Repository details"}}</h2><span class="pill">{{if .Repository.Archived}}{{t "ARCHIVED"}}{{else}}{{t "REGISTERED"}}{{end}}</span></div>{{template "repository-form" .}}</section>
+    {{if .Repository.ID}}<section class="panel compact-panel"><div><h3>{{if .Repository.Archived}}{{t "Restore repository"}}{{else}}{{t "Archive repository"}}{{end}}</h3><p>{{if .Repository.Archived}}{{t "Make this repository available for new review drafts."}}{{else}}{{t "Hide it from the active list. Existing reviews remain available."}}{{end}}</p></div><form method="post" action="/repositories/{{.Repository.ID}}/archive"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Repository.Version}}"><input type="hidden" name="archived" value="{{if .Repository.Archived}}0{{else}}1{{end}}"><button class="button secondary">{{if .Repository.Archived}}{{t "Restore"}}{{else}}{{t "Archive"}}{{end}}</button></form></section>{{end}}
+    {{end}}
+
+    {{if eq .Page "reviews"}}
+    <div class="page-heading"><div><div class="eyebrow">{{t "REVIEW HISTORY"}}</div><h1>{{t "Reviews"}}</h1><p>{{t "Keep the purpose and scope of each review together."}}</p></div><a class="button primary" href="/repositories">{{t "+ New review draft"}}</a></div>
+    {{template "filters" .}}
+    <section class="panel">{{if .Reviews}}{{template "review-list" .}}{{else}}<div class="empty"><span class="empty-icon">≡</span><h3>{{if .Query}}{{t "No matching reviews."}}{{else if .Archived}}{{t "Nothing archived yet."}}{{else}}{{t "No review drafts yet."}}{{end}}</h3><p>{{t "Choose a repository to prepare your first review."}}</p><a class="button secondary" href="/repositories">{{t "Browse repositories →"}}</a></div>{{end}}</section>
+    {{template "pagination" .}}
+    {{end}}
+
+    {{if eq .Page "review"}}
+    <a class="back-link" href="/reviews">{{t "← Reviews"}}</a>
+    <div class="page-heading"><div><div class="eyebrow">{{.Review.RepositoryName}}</div><h1>{{if .Review.ID}}{{.Review.Title}}{{else}}{{t "Prepare a review"}}{{end}}</h1><p>{{t "Describe what changed and what you want the review to focus on."}}</p></div><span class="pill">{{if .Review.Archived}}{{t "ARCHIVED"}}{{else}}{{t "DRAFT"}}{{end}}</span></div>
+    <div class="detail-grid"><section class="panel form-panel"><div class="panel-heading"><h2>{{t "Review context"}}</h2></div>
+      <form method="post" action="{{if .Review.ID}}/reviews/{{.Review.ID}}{{else}}/reviews{{end}}" class="form-body">
+        <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Review.Version}}"><input type="hidden" name="repository_id" value="{{.Review.RepositoryID}}">
+        <label>{{t "Title"}} <input name="title" required maxlength="200" value="{{.Review.Title}}" placeholder="{{t "For example: review the payment retry flow"}}"></label>
+        <div class="form-row"><label>{{t "Base revision"}} <span class="optional">{{t "optional"}}</span><input name="base_ref" maxlength="250" value="{{.Review.BaseRef}}" placeholder="main"></label><label>{{t "Target revision"}} <span class="optional">{{t "optional"}}</span><input name="head_ref" maxlength="250" value="{{.Review.HeadRef}}" placeholder="feature/payment-retry"></label></div>
+        <label>{{t "Background"}} <textarea name="background" rows="8" maxlength="20000" placeholder="{{t "What is the intended behavior? What should receive extra attention?"}}">{{.Review.Background}}</textarea></label>
+        <div class="form-footer"><span>{{t "Revisions are saved as draft text, not resolved yet."}}</span><button class="button primary">{{t "Save draft"}}</button></div>
+      </form>
+    </section><aside class="panel context-panel"><span class="small-label">{{t "NEXT STEP"}}</span><h2>{{t "Context comes first."}}</h2><p>{{t "This draft is saved locally. Running reviews, findings, and AI conversations will be connected in the next phase."}}</p><div class="divider"></div><span class="small-label">{{t "REPOSITORY"}}</span><a class="text-link" href="/repositories/{{.Review.RepositoryID}}">{{.Review.RepositoryName}} →</a>{{if .Review.ID}}<span class="small-label">{{t "LAST UPDATED"}}</span><p>{{date .Review.UpdatedAt}}</p>{{end}}</aside></div>
+    {{if .Review.ID}}<section class="panel compact-panel"><div><h3>{{if .Review.Archived}}{{t "Restore review"}}{{else}}{{t "Archive review"}}{{end}}</h3><p>{{t "Keep this review and its context for future reference."}}</p></div><form method="post" action="/reviews/{{.Review.ID}}/archive"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Review.Version}}"><input type="hidden" name="archived" value="{{if .Review.Archived}}0{{else}}1{{end}}"><button class="button secondary">{{if .Review.Archived}}{{t "Restore"}}{{else}}{{t "Archive"}}{{end}}</button></form></section>{{end}}
+    {{end}}
+
+    {{if eq .Page "settings"}}
+    <div class="page-heading"><div><div class="eyebrow">{{t "PREFERENCES"}}</div><h1>{{t "Workspace settings"}}</h1><p>{{t "Your code source and defaults for future reviews."}}</p></div><span class="pill">{{t "PERSONAL"}}</span></div>
+    <form method="post" action="/settings" class="settings-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Settings.Version}}">
+      <section class="panel form-panel"><div class="panel-heading"><div><h2>Gitea</h2><p>{{t "Connection preferences. Saving does not contact the server."}}</p></div><a class="text-link" href="/gitea">{{t "Connect and browse repositories"}} →</a></div><div class="form-body"><div class="form-row"><label>{{t "Server URL"}}<input name="gitea_url" type="url" required maxlength="2048" value="{{.Settings.GiteaURL}}"></label><label>{{t "Username"}}<input name="gitea_user" maxlength="100" value="{{.Settings.GiteaUser}}" autocomplete="off"></label></div><div class="credential-line"><span class="status-dot {{if .TokenPresent}}ready{{end}}"></span>{{if .TokenPresent}}{{t "Token available in the process environment."}}{{else}}{{t "No token configured."}}{{end}}<span class="muted">OCR_GITEA_TOKEN</span><a class="text-link" href="/gitea">{{t "Configure Gitea access"}} →</a></div></div></section>
+      <section class="panel form-panel"><div class="panel-heading"><div><h2>{{t "Review defaults"}}</h2><p>{{t "Reserved for the upcoming review engine connection."}}</p></div></div><div class="form-body"><div class="form-row"><label>{{t "Model API base URL"}} <span class="optional">{{t "optional"}}</span><input name="model_endpoint" type="url" maxlength="2048" value="{{.Settings.ModelEndpoint}}" placeholder="https://your-provider.example/v1"></label><label>{{t "Model name"}} <span class="optional">{{t "optional"}}</span><input name="model_name" maxlength="200" value="{{.Settings.ModelName}}" placeholder="{{t "Your preferred model"}}"></label></div><div class="form-row"><label>{{t "Review language"}}<select name="language"><option value="zh-CN" {{if eq .Settings.Language "zh-CN"}}selected{{end}}>{{t "Chinese (Simplified)"}}</option><option value="en" {{if eq .Settings.Language "en"}}selected{{end}}>{{t "English"}}</option></select></label><label>{{t "Token budget per run"}}<input name="token_budget" type="number" min="1000" max="1000000" required value="{{.Settings.TokenBudget}}"></label></div><div class="credential-line"><span class="status-dot {{if .ModelKeyPresent}}ready{{end}}"></span>{{if .ModelKeyPresent}}{{t "API key available in the process environment."}}{{else}}{{t "No model API key configured."}}{{end}}<span class="muted">OCR_LLM_API_KEY</span></div></div></section>
+      <div class="settings-footer"><p>{{t "Secrets are never stored in these settings or displayed in the page."}}</p><button class="button primary">{{t "Save settings"}}</button></div>
+    </form>
+    <section class="panel compact-panel storage"><div><h3>{{t "Local storage"}}</h3><p>{{t "Settings, repositories, and review drafts are saved in this directory. Stop the application before copying it for a backup."}}</p><code>{{.DataDir}}</code></div><span class="pill">SQLITE</span></section>
+    {{end}}
+
+    {{if eq .Page "error"}}<div class="empty"><h1>{{.Title}}</h1><a class="button secondary" href="/">{{t "Return to overview"}}</a></div>{{end}}
+    <footer class="page-footer"><span>{{t "Review Desk"}}</span><span>{{t "One workspace. Your context."}}</span></footer>
+  </main>
+</div>
+</body>
+</html>
+
+{{define "repository-form"}}
+<form method="post" action="{{if .Repository.ID}}/repositories/{{.Repository.ID}}{{else}}/repositories{{end}}" class="form-body">
+  <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Repository.Version}}">
+  <label>{{t "Name"}}<input name="name" required maxlength="120" value="{{.Repository.Name}}" placeholder="{{t "For example: payment-service"}}"></label>
+  {{if .Source}}
+  <label>{{t "Repository web URL"}}<input readonly value="{{.Repository.RemoteURL}}"></label>
+  <label>{{t "Managed code cache"}}<input readonly value="{{.Repository.LocalPath}}" placeholder="{{t "Available after the first successful sync"}}"></label>
+  {{else}}
+  <label>{{t "Repository web URL"}} <span class="optional">{{t "optional"}}</span><input name="remote_url" type="url" maxlength="2048" value="{{.Repository.RemoteURL}}" placeholder="http://10.30.142.20:3000/owner/repository"><small>{{t "Use the HTTP(S) repository page URL without credentials."}}</small></label>
+  <label>{{t "Local Git checkout"}} <span class="optional">{{t "optional"}}</span><input name="local_path" maxlength="4096" value="{{.Repository.LocalPath}}" placeholder="{{t "E:\\code\\payment-service or /home/me/code/payment-service"}}"><small>{{t "Provide an absolute path, a web URL, or both. Registering a URL does not clone the repository."}}</small></label>
+  {{end}}
+  <div class="form-footer"><span>{{t "Saved locally in your workspace."}}</span><button class="button primary">{{if .Repository.ID}}{{t "Save repository"}}{{else}}{{t "Add repository"}}{{end}}</button></div>
+</form>
+{{end}}
+
+{{define "review-list"}}
+<div class="table-scroll"><table><thead><tr><th>{{t "Review"}}</th><th>{{t "Status"}}</th><th>{{t "Updated"}}</th><th></th></tr></thead><tbody>
+{{range .Reviews}}<tr><td><a class="record-title" href="/reviews/{{.ID}}">{{.Title}}</a><span class="subtext">{{.RepositoryName}}</span></td><td><span class="pill {{if .Archived}}neutral{{end}}">{{if .Archived}}{{t "ARCHIVED"}}{{else}}{{t "DRAFT"}}{{end}}</span></td><td class="nowrap muted">{{date .UpdatedAt}}</td><td><a class="text-link" href="/reviews/{{.ID}}">{{t "Open →"}}</a></td></tr>{{end}}
+</tbody></table></div>
+{{end}}
+
+{{define "filters"}}
+<div class="list-toolbar"><div class="tabs"><a href="?archived=0" {{if not .Archived}}aria-current="page"{{end}}>{{t "Active"}}</a><a href="?archived=1" {{if .Archived}}aria-current="page"{{end}}>{{t "Archived"}}</a></div><form method="get" class="search"><input type="hidden" name="archived" value="{{if .Archived}}1{{else}}0{{end}}"><label class="sr-only" for="search">{{t "Search records"}}</label><input id="search" name="q" maxlength="200" value="{{.Query}}" placeholder="{{t "Search by name..."}}"><button class="button secondary">{{t "Search"}}</button></form></div>
+{{end}}
+
+{{define "pagination"}}
+{{if or .Previous .Next}}<nav class="pagination" aria-label="{{t "Pagination"}}">{{if .Previous}}<a class="button secondary" href="{{.Previous}}">{{t "← Previous"}}</a>{{end}}{{if .Next}}<a class="button secondary" href="{{.Next}}">{{t "Next →"}}</a>{{end}}</nav>{{end}}
+{{end}}

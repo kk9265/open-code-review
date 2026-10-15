@@ -92,21 +92,16 @@ func newDelegateRepo(t *testing.T) delegateRepo {
 
 func delegateExamples(t *testing.T) []string {
 	t.Helper()
-	docs := []string{
-		"skills/open-code-review-delegate/SKILL.md",
-		"plugins/open-code-review/skills/open-code-review-delegate/SKILL.md",
-		"plugins/open-code-review/claude-code/commands/delegate-review.md",
-		"plugins/open-code-review/kimi-code/commands/delegate-review.md",
+	return []string{
+		`git --no-pager diff --no-ext-diff --no-textconv --no-color <merge_base>..<to> -- "<path>"`,
+		`git --no-pager show --no-ext-diff --no-textconv --no-color <commit> -- "<path>"`,
+		`git --no-pager diff --no-ext-diff --no-textconv --no-color HEAD -- "<path>"`,
+		`cat "<path>"`,
+		`git --no-pager log --no-color --oneline -- "<path>"`,
+		`git --no-pager blame --no-textconv -- "<path>"`,
+		`git --no-pager show --no-ext-diff --no-textconv --no-color "<ref>:<path>"`,
+		`git --no-pager diff --no-ext-diff --no-textconv --no-color --output="<absolute-diff-file>" <merge_base>..<to> -- "<path>"`,
 	}
-	for _, locale := range []string{"en", "zh", "ja", "ko", "ru"} {
-		docs = append(docs, "pages/src/content/docs/"+locale+"/integrations/delegate.md")
-	}
-	// Go runs package tests from the package directory, including with -trimpath.
-	examples, err := readDelegateExamples(os.DirFS(filepath.Join("..", "..")), docs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return examples
 }
 
 func readDelegateExamples(root fs.FS, docs []string) ([]string, error) {
