@@ -1,0 +1,33 @@
+{{define "review-tabs"}}
+<nav class="repository-tabs" aria-label="{{t "Reviews"}}"><a href="/reviews/queue" {{if eq .Page "queue"}}aria-current="page"{{end}}>{{t "Review queue"}}</a><a href="/reviews/drafts" {{if or (eq .Page "reviews") (eq .Page "review")}}aria-current="page"{{end}}>{{t "Review drafts"}}</a></nav>
+{{end}}
+{{define "results"}}
+<div class="page-heading"><div><div class="eyebrow">{{t "Reviews"}}</div><h1>{{t "Review results"}}</h1><p>{{t "Browse tickets on the left and read each review round on the right."}}</p></div></div>
+<div class="result-workspace">
+<aside class="result-tree panel" aria-label="{{t "Ticket reports"}}">
+<form method="get" action="/reviews" class="result-search"><label for="result-search">{{t "Ticket reports"}}</label><div><input id="result-search" name="q" value="{{.Query}}" maxlength="200" placeholder="{{t "Search by title, ticket or repository"}}"><button class="button secondary">{{t "Search"}}</button></div></form>
+<div class="result-tree-scroll">
+{{range .ResultGroups}}
+<details class="result-folder" {{if eq .ID $.Job.GroupID}}open{{end}}>
+<summary><span class="result-folder-title">{{t .Title}}</span><span class="ticket-meta">{{.Repository}} / {{.Branch}}</span><span class="result-counts">{{.CommitCount}} {{t "Assigned commits"}} · {{len .Rounds}} {{t "Review rounds"}}</span></summary>
+<a class="ticket-url result-ticket-url" href="{{.Ticket}}" target="_blank" rel="noreferrer">{{.Ticket}}</a>
+<div class="result-rounds">{{range .Rounds}}
+<a class="result-round" href="/reviews?run={{.ID}}&amp;q={{urlquery $.Query}}" {{if eq .ID $.Job.ID}}aria-current="page"{{end}}><span><strong>{{printf (t "Review round %d") .Number}}</strong><span>{{.CommitCount}} {{t "Reviewed commits"}}</span></span><time>{{date .CreatedAt}}</time>{{if ne .State "completed"}}<small>{{if .HasReport}}{{t "Partial report"}}{{else}}{{t (printf "queue.%s" .State)}}{{end}}</small>{{end}}</a>
+{{else}}<p class="result-empty">{{t "No archived rounds yet."}}</p>{{end}}</div>
+</details>
+{{else}}<p class="result-empty">{{t "No matching tickets."}}</p>{{end}}
+{{if not .Unclassified}}{{template "pagination" .}}{{end}}
+</div>
+<a class="result-unclassified" href="/reviews?unclassified=1" {{if .Unclassified}}aria-current="page"{{end}}><span>{{t "Unclassified"}}</span><strong>{{.UnclassifiedCount}}</strong><small>{{t "Commits awaiting a ticket"}}</small></a>
+</aside>
+<section class="result-reader" aria-label="{{t "Review report"}}">
+{{if .Unclassified}}
+<div class="page-heading"><div><h2>{{t "Unclassified"}}</h2><p>{{t "Assign these commits to a ticket to collect their review reports."}}</p></div><span class="pill">{{.UnclassifiedCount}} {{t "Commits"}}</span></div>
+<form method="get" action="/reviews" class="filters"><input type="hidden" name="unclassified" value="1"><input name="q" value="{{.Query}}" aria-label="{{t "Search commits"}}" placeholder="{{t "Search commits"}}"><button class="button secondary">{{t "Search"}}</button></form>
+<section class="panel form-panel"><div class="form-body">{{range .TicketCommits}}<details class="commit-assignment"><summary><span class="ticket-title">{{t .Title}}</span><span class="ticket-meta">{{.RepositoryName}} / {{.Branch}}</span></summary><code>{{.SHA}}</code><pre class="review-output">{{.Message}}</pre>{{if .Reason}}<p>{{t .Reason}}</p>{{end}}<form method="post" action="/reviews/commits/{{.ID}}"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="version" value="{{.Version}}"><input type="hidden" name="return_to" value="unclassified"><label>{{t "Ticket URL"}}<input name="ticket" type="url" required maxlength="500" placeholder="https://project.feishu.cn/zg/story/detail/123"></label><button class="button secondary">{{t "Assign and queue"}}</button></form></details>{{else}}<p>{{t "No unclassified commits match this search."}}</p>{{end}}</div></section>
+{{template "pagination" .}}
+{{else if .Job.ID}}{{template "job" .}}
+{{else}}<section class="panel form-panel"><div class="form-body"><h2>{{t "Select a review report"}}</h2><p>{{t "Reports accumulate under their ticket after each review."}}</p></div></section>{{end}}
+</section>
+</div>
+{{end}}

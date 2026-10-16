@@ -12,6 +12,8 @@ vendor/
 temp/
 .local-go/
 .ocr-data/
+.ocr-context/
+gitea-token.dpapi
 .codegraph/
 
 /opencodereview

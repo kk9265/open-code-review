@@ -1,0 +1,29 @@
+{{define "branch-tracking"}}
+<section class="panel form-panel">
+<div class="panel-heading"><div><h2>{{t "Branch tracking"}}</h2><p>{{t "Start with the next synchronized version. Earlier commits are not collected and AI is not invoked."}}</p></div>{{with .Tracking}}<span class="pill">{{t (printf "tracking.%s" .State)}}</span>{{end}}</div>
+<div class="form-body">
+{{if .TrackingError}}<div class="notice error" role="alert">{{t .TrackingError}}</div>{{end}}
+{{with .Tracking}}
+{{if .LastError}}<div class="notice error" role="alert">{{t .LastError}}</div>{{end}}
+{{if .Baseline}}
+<div class="tracking-summary"><div><span class="small-label">{{t "Tracking baseline"}}</span><code>{{.Baseline}}</code></div><div><span class="small-label">{{t "Last observed commit"}}</span><code>{{.LastSHA}}</code></div><div><span class="small-label">{{t "New commits discovered"}}</span><strong>{{.CommitCount}}</strong></div></div>
+{{else}}<p>{{t "The baseline will be saved after a successful sync. No historical commits will be collected."}}</p>{{end}}
+{{if .LastChecked}}<p>{{t "Last checked"}}: {{date .LastChecked}}</p>{{end}}
+{{end}}
+{{if not .Repository.Archived}}
+<form method="post" action="/repositories/{{.Repository.ID}}/tracking" class="tracking-form">
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="tracking_version" value="{{if .Tracking}}{{.Tracking.Version}}{{else}}0{{end}}">
+<input type="hidden" name="tracking_action" value="{{if .Tracking}}save{{else}}start{{end}}">
+<div class="form-row">
+<label>{{t "Tracked branch"}}{{if .Tracking}}<input name="branch" readonly value="{{.Tracking.Branch}}">{{else}}<select name="branch" required><option value="">{{t "Choose a branch"}}</option>{{range .Branches}}<option value="{{.}}">{{.}}</option>{{end}}</select>{{end}}</label>
+<label>{{t "Sync method"}}<select name="sync_mode"><option value="http" {{if and .Tracking (eq .Tracking.Mode "http")}}selected{{end}}>Gitea HTTP</option><option value="local" {{if and .Tracking (eq .Tracking.Mode "local")}}selected{{end}}>{{t "Local repository"}}</option></select></label>
+</div>
+<label>{{t "Local source path"}}<input name="local_source" maxlength="4096" value="{{if .Tracking}}{{.Tracking.LocalSource}}{{end}}" placeholder="C:\gitea\data\gitea-repositories\owner\repository.git"><small>{{t "Required for local sync. Select the source bare repository, not the workbench cache."}}</small></label>
+<label>{{t "Check interval (seconds)"}}<input name="interval_seconds" type="number" min="60" max="3600" required value="{{if .Tracking}}{{.Tracking.Interval}}{{else}}300{{end}}"><small>{{t "Checks run while the workbench is open. Updates during downtime are collected after restart."}}</small></label>
+<div class="form-footer"><span>{{t "The baseline and discovered commits are retained when tracking is paused."}}</span><button class="button primary" {{if not .Branches}}disabled{{end}}>{{if .Tracking}}{{t "Save tracking settings"}}{{else}}{{t "Start from current version"}}{{end}}</button></div>
+</form>
+{{if .Tracking}}<form method="post" action="/repositories/{{.Repository.ID}}/tracking"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="tracking_version" value="{{.Tracking.Version}}">{{if or (eq .Tracking.State "paused") (eq .Tracking.State "blocked")}}<input type="hidden" name="tracking_action" value="resume"><button class="button secondary">{{t "Resume tracking"}}</button>{{else}}<input type="hidden" name="tracking_action" value="pause"><button class="button secondary">{{t "Pause tracking"}}</button>{{end}}</form>{{end}}
+{{end}}
+{{if .TrackedCommits}}<details><summary>{{t "Recently discovered commits"}}</summary><ul class="tracked-commits">{{range .TrackedCommits}}<li><code>{{.}}</code></li>{{end}}</ul></details>{{end}}
+</div></section>
+{{end}}

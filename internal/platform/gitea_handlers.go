@@ -30,7 +30,7 @@ func (s *Server) giteaRepositories(c *gin.Context) {
 	if len(query) > 200 {
 		query = ""
 	}
-	data := page{Page: "gitea", Title: s.text("Gitea repositories"), Settings: settings, Query: query, GiteaApplicationsURL: settings.GiteaURL + "/user/settings/applications"}
+	data := page{Page: "gitea", Title: s.text("Repositories"), Settings: settings, Query: query, GiteaApplicationsURL: settings.GiteaURL + "/user/settings/applications"}
 	client, err := newGiteaClient(settings)
 	if err != nil {
 		data.Error = err.Error()
@@ -62,7 +62,7 @@ func (s *Server) giteaRepositories(c *gin.Context) {
 	}
 	data.GiteaRepositories, data.GiteaLogin, data.GiteaConnected = repositories, user.Login, true
 	link := func(page int) string {
-		return "/gitea?" + url.Values{"page": {strconv.Itoa(page)}, "q": {query}}.Encode()
+		return "/repositories/import?" + url.Values{"page": {strconv.Itoa(page)}, "q": {query}}.Encode()
 	}
 	if n > 1 {
 		data.Previous = link(n - 1)

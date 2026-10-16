@@ -32,6 +32,8 @@ type Deps struct {
 	Template          template.Template
 	Tools             *tool.Registry
 	MainToolDefs      []llm.ToolDef
+	FinalToolDefs     []llm.ToolDef
+	FinalPrompt       string
 	CommentCollector  *tool.CommentCollector
 	CommentWorkerPool *CommentWorkerPool
 	Session           *session.SessionHistory
@@ -563,15 +565,21 @@ func (r *Runner) tokenBudgetExceeded() bool {
 // main-task round, so its verdict on the subtask has to count.
 func (r *Runner) runGraceRound(ctx context.Context, messages []llm.Message, taskKey string, sessionID string) bool {
 	graceDefs := graceRoundToolDefs(r.deps.MainToolDefs)
+	if r.deps.FinalToolDefs != nil {
+		graceDefs = r.deps.FinalToolDefs
+	}
 	if len(graceDefs) == 0 {
 		return false
 	}
 
-	messages = append(messages, llm.NewTextMessage("user",
-		"Your review budget is exhausted. This is your FINAL round. You may ONLY:\n"+
-			"- Call code_comment to submit any findings you have identified but not yet reported.\n"+
-			"- Call task_done if you have nothing more to report.\n"+
-			"No other tools are available. Do not attempt further analysis."))
+	prompt := r.deps.FinalPrompt
+	if prompt == "" {
+		prompt = "Your review budget is exhausted. This is your FINAL round. You may ONLY:\n" +
+			"- Call code_comment to submit any findings you have identified but not yet reported.\n" +
+			"- Call task_done if you have nothing more to report.\n" +
+			"No other tools are available. Do not attempt further analysis."
+	}
+	messages = append(messages, llm.NewTextMessage("user", prompt))
 
 	if ctx.Err() != nil {
 		fmt.Fprintf(stdout.Writer(), "[ocr] Grace round skipped for %s: context cancelled\n", taskKey)
@@ -625,6 +633,14 @@ func (r *Runner) runGraceRound(ctx context.Context, messages []llm.Message, task
 	failed := false
 	thinking := resp.ReasoningContent()
 	for _, call := range calls {
+		allowed := false
+		for _, def := range graceDefs {
+			allowed = allowed || def.Function.Name == call.Function.Name
+		}
+		if !allowed {
+			failed = true
+			continue
+		}
 		checkpoint := r.executeToolCall(ctx, taskKey, call, rec, thinking)
 		completed = completed || checkpoint.Completed
 		failed = failed || checkpoint.Failed

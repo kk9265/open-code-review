@@ -720,8 +720,47 @@ textarea {
   background:#fff;
   padding:10px;
 }
-.gitea-entry {
-  margin:0 0 20px;
+.repository-tabs {
+  display:flex;
+  flex-wrap:wrap;
+  gap:24px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:24px;
+}
+.tracking-form {
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+.tracking-summary {
+  display:grid;
+  gap:16px;
+}
+.tracking-summary code,.tracked-commits code {
+  overflow-wrap:anywhere;
+}
+button:disabled {
+  opacity:.5;
+  cursor:not-allowed;
+}
+.repository-tabs a {
+  padding:12px 0;
+  color:var(--muted);
+  border-bottom:2px solid transparent;
+}
+.repository-tabs a[aria-current] {
+  border-bottom-color:var(--blue);
+  color:var(--blue);
+  font-weight:600;
+}
+.repository-registration summary {
+  cursor:pointer;
+  padding:22px 24px;
+  font-weight:600;
+}
+.repository-registration summary:focus-visible {
+  outline:3px solid #8fafff;
+  outline-offset:-3px;
 }
 .gitea-search {
   margin-top:24px;
@@ -911,4 +950,103 @@ input[readonly] {
   .skip:focus {
     left:5px;
   }
+}
+ .review-output { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.65; max-height: 650px; overflow: auto; }
+ .commit-assignment { padding: 16px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+ .commit-assignment summary { cursor: pointer; }
+.queue-panel {
+  margin-bottom: 20px;
+}
+.ticket-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.ticket-cell { min-width: 300px; }
+.ticket-url, .ticket-meta {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.ticket-url:hover { color: var(--blue); text-decoration: underline; }
+.ticket-heading { overflow-wrap: anywhere; }
+.review-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+.review-input > summary {
+  padding: 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.review-markdown {
+  line-height: 1.85;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.review-markdown > :first-child { margin-top: 0; }
+.review-markdown h1, .review-markdown h2, .review-markdown h3 {
+  margin: 1.5em 0 .65em;
+  line-height: 1.5;
+}
+.review-markdown h1 { font-size: 25px; }
+.review-markdown h2 { font-size: 21px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.review-markdown h3 { font-size: 17px; }
+.review-markdown p, .review-markdown ul, .review-markdown ol { margin: .8em 0; }
+.review-markdown li + li { margin-top: .4em; }
+.review-markdown pre {
+  overflow-x: auto;
+  padding: 18px;
+  background: #f4f6fa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  line-height: 1.6;
+}
+.review-markdown code { font-family: Consolas, monospace; font-size: .88em; }
+.review-markdown :not(pre) > code { background: #eef2f8; padding: 2px 5px; border-radius: 4px; }
+.review-markdown pre code { white-space: pre; }
+.review-markdown blockquote { border-left: 3px solid var(--blue); margin-left: 0; padding-left: 18px; color: var(--muted); }
+.review-markdown a { color: var(--blue); text-decoration: underline; }
+.review-markdown table { display: block; overflow-x: auto; margin: 20px 0; }
+.review-markdown th, .review-markdown td { border: 1px solid var(--line); padding: 10px 14px; }
+/* Ticket navigation stays visible while the report scrolls. */
+.results-main { max-width:none; padding:28px 30px 20px; }
+.result-workspace { display:grid; grid-template-columns:320px minmax(0,1fr); gap:24px; align-items:start; }
+.result-tree { position:sticky; top:20px; display:flex; flex-direction:column; max-height:calc(100vh - 250px); overflow:hidden; }
+.result-search, .result-unclassified { flex-shrink:0; }
+.result-search { padding:18px; border-bottom:1px solid #e7ecf3; }
+.result-search label { display:block; margin-bottom:12px; font-weight:700; }
+.result-search > div { display:flex; gap:8px; }
+.result-search input { min-width:0; width:100%; }
+.result-tree-scroll { overflow:auto; min-height:120px; flex:1; }
+.result-folder { border-bottom:1px solid #edf0f5; padding:6px 10px; }
+.result-folder > summary { cursor:pointer; padding:12px 8px; border-radius:6px; }
+.result-folder > summary:hover { background:#f3f6fc; }
+.result-folder-title { font-size:13px; font-weight:650; line-height:1.6; overflow-wrap:anywhere; }
+.result-folder .ticket-meta, .result-counts { display:block; margin:6px 0 0 16px; font-size:11px; color:#75839a; overflow-wrap:anywhere; }
+.result-ticket-url { display:block; padding:0 8px 10px 24px; font-size:10px; overflow-wrap:anywhere; }
+.result-rounds { margin-left:15px; padding:0 0 8px 10px; border-left:1px solid #dfe5ef; }
+.result-round { display:block; padding:11px 12px; margin:3px 0; border-radius:7px; color:#50617a; font-size:12px; border:1px solid transparent; }
+.result-round > span { display:flex; justify-content:space-between; gap:8px; }
+.result-round time { display:block; font-size:11px; margin-top:6px; color:#7e8da4; }
+.result-round small { display:block; margin-top:6px; color:#a36a24; }
+.result-round:hover { background:#f4f7fc; }
+.result-round[aria-current="page"] { background:#edf2ff; border-color:#cbd8fc; color:#315fda; }
+.result-empty { padding:16px; font-size:12px; color:#7e8da4; }
+.result-unclassified { display:grid; grid-template-columns:1fr auto; gap:6px; padding:18px; border-top:1px solid #dfe5ef; background:#f8fafc; color:#53627a; font-size:13px; }
+.result-unclassified small { grid-column:1 / -1; font-size:11px; color:#7e8da4; }
+.result-unclassified[aria-current="page"] { background:#edf2ff; color:#315fda; }
+.result-reader { min-width:0; }
+.result-reader .ticket-heading { font-size:22px; }
+.result-reader .page-heading { gap:14px; flex-wrap:wrap; }
+.result-reader .review-actions { flex-wrap:wrap; }
+.result-reader .back-link { display:none; }
+.result-reader .review-markdown { overflow-wrap:anywhere; }
+@media(max-width:1100px) {
+  .result-workspace { grid-template-columns:270px minmax(0,1fr); gap:16px; }
+  main.results-main { padding:24px 18px; }
+}
+@media(max-width:800px) {
+  .result-workspace { grid-template-columns:1fr; }
+  .result-tree { position:static; max-height:420px; }
 }

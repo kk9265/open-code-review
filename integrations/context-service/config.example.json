@@ -1,0 +1,9 @@
+{
+  "data_dir": "../../.ocr-context/data",
+  "codegraph_command": ["codegraph"],
+  "index_timeout_seconds": 1800,
+  "repositories": {
+    "1": {"source": "E:/code_review/open-code-review/.ocr-data/repositories/1.git", "codegraph": true, "wiki": true},
+    "2": {"source": "E:/code_review/open-code-review/.ocr-data/repositories/2.git", "codegraph": true, "wiki": true}
+  }
+}

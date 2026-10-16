@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +40,7 @@ type Server struct {
 	log      *slog.Logger
 	text     func(string) string
 	syncWake chan struct{}
+	syncMu   sync.Mutex
 }
 
 type page struct {
@@ -51,9 +53,21 @@ type page struct {
 	Review                                                   Review
 	Settings                                                 Settings
 	Source                                                   *GiteaSource
+	RepositorySources                                        map[int64]*GiteaSource
 	GiteaRepositories                                        []GiteaRepository
 	GiteaLogin, GiteaApplicationsURL                         string
 	GiteaConnected                                           bool
+	Tracking                                                 *Tracking
+	Branches, TrackedCommits                                 []string
+	TrackingError                                            string
+	QueueEnabled                                             bool
+	QueueStatus                                              string
+	Jobs                                                     []ReviewJob
+	Job                                                      ReviewJob
+	TicketCommits                                            []TicketCommit
+	ResultGroups                                             []ResultGroup
+	Unclassified                                             bool
+	UnclassifiedCount                                        int
 }
 
 func NewServer(config Config, store *Store, logger *slog.Logger) (*Server, error) {
@@ -117,14 +131,29 @@ func (s *Server) Handler() http.Handler {
 	r.GET("/", s.overview)
 	r.GET("/repositories", s.repositories)
 	r.POST("/repositories", s.saveRepository)
+	r.GET("/repositories/import", s.giteaRepositories)
+	r.POST("/repositories/import", s.importGitea)
 	r.GET("/repositories/:id", s.repository)
 	r.POST("/repositories/:id", s.saveRepository)
 	r.POST("/repositories/:id/archive", s.archive("repositories"))
 	r.POST("/repositories/:id/sync", s.queueGiteaSync)
-	r.GET("/gitea", s.giteaRepositories)
+	r.POST("/repositories/:id/tracking", s.saveTracking)
+	r.GET("/gitea", func(c *gin.Context) {
+		target := "/repositories/import"
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusFound, target)
+	})
 	r.POST("/gitea/repositories", s.importGitea)
-	r.GET("/reviews", s.reviews)
+	r.GET("/reviews", s.resultsPage)
+	r.GET("/reviews/drafts", s.reviews)
 	r.GET("/reviews/new", s.newReview)
+	r.GET("/reviews/queue", s.queuePage)
+	r.POST("/reviews/queue", s.queueControl)
+	r.GET("/reviews/runs/:id", s.jobPage)
+	r.POST("/reviews/runs/:id", s.jobAction)
+	r.POST("/reviews/commits/:id", s.assignTicket)
 	r.POST("/reviews", s.saveReview)
 	r.GET("/reviews/:id", s.review)
 	r.POST("/reviews/:id", s.saveReview)
@@ -276,6 +305,15 @@ func (s *Server) repositories(c *gin.Context) {
 	if len(data.Repositories) > 50 {
 		data.Repositories = data.Repositories[:50]
 	}
+	data.RepositorySources = make(map[int64]*GiteaSource, len(data.Repositories))
+	for _, repository := range data.Repositories {
+		source, err := s.store.GiteaSource(c.Request.Context(), repository.ID)
+		if err != nil {
+			s.fail(c, err)
+			return
+		}
+		data.RepositorySources[repository.ID] = source
+	}
 	s.render(c, http.StatusOK, data)
 }
 
@@ -295,7 +333,28 @@ func (s *Server) repository(c *gin.Context) {
 		s.fail(c, err)
 		return
 	}
-	s.render(c, http.StatusOK, page{Page: "repository", Title: v.Name, Repository: v, Source: source})
+	data := page{Page: "repository", Title: v.Name, Repository: v, Source: source}
+	if source != nil {
+		data.Tracking, err = s.store.Tracking(c.Request.Context(), id)
+		if err != nil {
+			s.fail(c, err)
+			return
+		}
+		data.Branches, err = s.trackingBranches(c.Request.Context(), id)
+		if err != nil {
+			data.TrackingError = "Synchronize the repository before selecting a branch."
+		}
+		data.TrackedCommits, err = s.recentTrackedCommits(c.Request.Context(), id)
+		if err != nil {
+			s.fail(c, err)
+			return
+		}
+		code, _ := strconv.Atoi(c.Query("tracking_error"))
+		if code > 0 && code <= len(trackingErrors) {
+			data.TrackingError = trackingErrors[code-1]
+		}
+	}
+	s.render(c, http.StatusOK, data)
 }
 
 func (s *Server) reviews(c *gin.Context) {
@@ -383,7 +442,8 @@ func (s *Server) saveSettings(c *gin.Context) {
 	budget, _ := strconv.Atoi(c.PostForm("token_budget"))
 	v := Settings{GiteaURL: c.PostForm("gitea_url"), GiteaUser: c.PostForm("gitea_user"),
 		ModelEndpoint: c.PostForm("model_endpoint"), ModelName: c.PostForm("model_name"),
-		Language: c.PostForm("language"), TokenBudget: budget, Version: version(c)}
+		ModelSource: c.PostForm("model_source"), ContextEndpoint: c.PostForm("context_endpoint"),
+		Language: c.PostForm("language"), TokenBudget: budget, TokenBudgetEnabled: c.PostForm("token_budget_enabled") == "1", Version: version(c)}
 	if err := v.Validate(); err != nil {
 		s.render(c, http.StatusUnprocessableEntity, s.settingsPage(v, err.Error()))
 		return

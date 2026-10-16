@@ -18,7 +18,7 @@
 
 两份 provider 生成文件暂时保留，供生成器测试和仓库规则使用，extensions 目录已不包含可构建插件。
 
-Go 1.26.9 位于 .local-go/sdk/go，通过 scripts/go.ps1 调用；系统 Go 保持 1.24.3。直接使用 Go 命令构建，不依赖 Make。详见 docs/local-go-windows.md。
+Go 1.26.9 位于 .local-go/sdk/go，通过 scripts/toolchain/go.ps1 调用；系统 Go 保持 1.24.3。直接使用 Go 命令构建，不依赖 Make。详见 docs/local-go-windows.md。
 
 新平台入口为 `cmd/ocr-web`，已实现 Gin 服务、SQLite 自动迁移、总览、仓库登记、审查草稿、设置页面，以及编辑、搜索、分页、归档和恢复。页面和 CSS 内嵌到二进制；默认监听 `127.0.0.1:5484`，数据保存在 `.ocr-data/workbench.db`。设置预填个人 Gitea 地址和账号，密钥仅识别进程环境中的配置状态。
 
@@ -42,7 +42,7 @@ Web handler 不直接调用 Cobra 命令。配置组装提取到可复用服务�
 
 ## 4. 下一步
 
-下一步由用户通过 `scripts/start-web.ps1 -Gitea -Restart` 隐藏输入令牌，确认私有仓库列表和拉取。随后实现分支/提交选择、固定提交范围的一轮审查。保留现有引擎功能，按后续真实依赖逐步收敛 TUI、scan、delegate、OAuth 和 telemetry。
+Gitea 联调、本地源同步、分支跟踪及按飞书单号归集的串行 AI 队列已经完成。当前跟踪 `zgame/master` 和 `zgame_china/dev/1.1.15.235.1`，用户已指定 AI Mana 的 `gpt-5.6-luna`。队列支持调整提交归属、固定轮次、失败重试和持久化结果。本版审查选中提交差异，完整工具代理、全库检索和多轮讨论仍待完善。详细状态见 HANDOFF.md 和 docs/review-queue.md。
 
 ## 5. 技术栈决定
 

@@ -19,7 +19,7 @@ Below are rules that a contributor must follow during development. If the user d
 
 open-code-review (`ocr`) is an AI-powered code review CLI tool written in Go (module: `github.com/alibaba/open-code-review`).
 
-Supported platforms are Windows and Linux only. Use Go commands directly; Make is not required. On Windows, invoke Go through `scripts/go.ps1` to use the project-local Go 1.26.9 toolchain. Build with `./scripts/go.ps1 build -o ./dist/opencodereview.exe ./cmd/opencodereview`. On Linux, use Go 1.26.9 and `go build -o ./dist/opencodereview ./cmd/opencodereview`.
+Supported platforms are Windows and Linux only. Use Go commands directly; Make is not required. On Windows, invoke Go through `scripts/toolchain/go.ps1` to use the project-local Go 1.26.9 toolchain. Build with `./scripts/toolchain/go.ps1 build -o ./dist/opencodereview.exe ./cmd/opencodereview`. On Linux, use Go 1.26.9 and `go build -o ./dist/opencodereview ./cmd/opencodereview`.
 
 ## Git Commit Notes
 
@@ -33,7 +33,7 @@ Supported platforms are Windows and Linux only. Use Go commands directly; Make i
 ## License Headers
 
 - Every source file (`.go`, `.js`, `.mjs`, `.ts`, `.tsx`, `.kt`, `.kts`, `.sh`, `.py`, `.css`) must have an SPDX license header.
-- Add the license header when creating source files. The optional `bash scripts/add-license.sh` helper picks the comment syntax by extension: `//`, `#`, or a `/* */` block for CSS.
+- Add the license header when creating source files. The optional `bash scripts/licenses/add-license.sh` helper picks the comment syntax by extension: `//`, `#`, or a `/* */` block for CSS.
 - An extension belongs on that list once the repository actually holds files of that type and the comment can simply be prepended. `.html` meets neither bar cleanly — its `<!DOCTYPE html>` has to stay on the first line — so it is not covered yet.
 
 ## Code Style
@@ -41,10 +41,10 @@ Supported platforms are Windows and Linux only. Use Go commands directly; Make i
 - The personal workbench defaults to Simplified Chinese. Put localized UI messages in `internal/platform/ui/i18n/`; keep source identifiers, comments, routes, and logs in English. UI language is separate from the review output language setting.
 
 - **Comment sparingly, and only to explain "why".** Do not add comments that restate what the code already says (`// increment i`), narrate the change itself (`// newly added`, `// changed to fix ...` — that belongs in the commit message or PR description), quote pull request or issue numbers from the upstream repository, or leave TODO/placeholder chatter. A comment earns its place only when it captures intent, a non-obvious constraint, or a subtlety the code cannot express on its own.
-- After writing code, use `go mod tidy`, `gofmt -s -w cmd internal scripts`, and `go vet ./...`. On Windows, use `scripts/go.ps1` for Go commands and `.local-go/sdk/go/bin/gofmt.exe` for formatting. Honor explicit user instructions to skip validation.
-- **Source files are written in English** — comments, identifiers and strings alike. `go run scripts/verify-english-only.go` checks this. It flags any letter outside ASCII, whichever the writing system (Han, kana, Hangul, Cyrillic, and equally the diacritics that spell German or Vietnamese), plus combining accents and fullwidth punctuation (`：`, `（`), which is easy to leave behind in an otherwise English sentence. Symbols and emoji (`─ → ≥ ✅`) pass, since they are not letters. Prose spelled entirely in ASCII (`Loeschen der Datei`, or a romanised transcription) takes a dictionary to spot and stays a matter for review.
+- After writing code, use `go mod tidy`, `gofmt -s -w cmd internal scripts`, and `go vet ./...`. On Windows, use `scripts/toolchain/go.ps1` for Go commands and `.local-go/sdk/go/bin/gofmt.exe` for formatting. Honor explicit user instructions to skip validation.
+- **Source files are written in English** — comments, identifiers and strings alike. `go run scripts/checks/verify-english-only.go` checks this. It flags any letter outside ASCII, whichever the writing system (Han, kana, Hangul, Cyrillic, and equally the diacritics that spell German or Vietnamese), plus combining accents and fullwidth punctuation (`：`, `（`), which is easy to leave behind in an otherwise English sentence. Symbols and emoji (`─ → ≥ ✅`) pass, since they are not letters. Prose spelled entirely in ASCII (`Loeschen der Datei`, or a romanised transcription) takes a dictionary to spot and stays a matter for review.
 - **Translated prose has its own homes, none of them scanned.** `docs/i18n/README.<locale>.md` and `docs/i18n/CONTRIBUTING.<locale>.md` (`zh-CN`, `ja-JP`, `ko-KR`, `ru-RU`); the doc pages under `pages/src/content/docs/<locale>/` (`en`, `zh`, `ja`, `ru`, Markdown throughout); and the UI copy tables in `pages/src/i18n/<locale>.ts`. Markdown is out of scope by extension, so translations go there freely. The i18n tables are `.ts` and would be scanned, so they are exempt by prefix instead — translated UI strings belong in those tables rather than inline in a component.
-- **Two escape hatches for the exceptional case, narrower one preferred.** Append an `allow-non-english: <reason>` marker comment to the offending line — the right choice for a handful of lines, such as an encoding fixture or a language-switcher label, and it leaves the rest of the file protected. Only for a whole tree that is inherently non-English, add a prefix to `allowedPrefixes` in `scripts/verify-english-only.go`; that list records each exemption's reason and the removal conditions for temporary translation exemptions.
+- **Two escape hatches for the exceptional case, narrower one preferred.** Append an `allow-non-english: <reason>` marker comment to the offending line — the right choice for a handful of lines, such as an encoding fixture or a language-switcher label, and it leaves the rest of the file protected. Only for a whole tree that is inherently non-English, add a prefix to `allowedPrefixes` in `scripts/checks/verify-english-only.go`; that list records each exemption's reason and the removal conditions for temporary translation exemptions.
 
 ## Provider Presets
 
@@ -58,7 +58,7 @@ do not edit them by hand:
 
 ## Testing
 
-- Run unit tests with `go test ./...` (on Windows, `./scripts/go.ps1 test ./...`). Honor explicit user requests not to run tests.
+- Run unit tests with `go test ./...` (on Windows, `./scripts/toolchain/go.ps1 test ./...`). Honor explicit user requests not to run tests.
 - Set `LC_ALL=C` for tests so Git outputs English messages. Add `-race` when a suitable C compiler is available.
 - When writing or modifying code, add necessary unit tests to maintain coverage. When coverage validation is requested, use `go test -coverprofile=coverage.out ./...` and `go tool cover -func=coverage.out`; the coverage target remains 90%.
 

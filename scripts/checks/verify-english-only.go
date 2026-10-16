@@ -30,7 +30,7 @@
 // Run it directly (the build tag keeps it out of ./... so it does not affect
 // go vet, go build or the coverage threshold):
 //
-//	go run scripts/verify-english-only.go
+//	go run scripts/checks/verify-english-only.go
 //
 // Two escape hatches exist, in order of preference:
 //
@@ -253,7 +253,7 @@ that line:
     {"multibyte truncation", 6, "..."}, // %s fixture exercises rune boundaries
 
 For a whole tree that is inherently non-English, add a prefix to
-allowedPrefixes in scripts/verify-english-only.go instead.
+allowedPrefixes in scripts/checks/verify-english-only.go instead.
 `, exemptMarker)
 		return errReported
 	}

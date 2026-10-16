@@ -10,9 +10,9 @@ the CLI built successfully, and the system installation remained Go 1.24.3.
 From the repository root:
 
 ```powershell
-.\scripts\go.ps1 version
-.\scripts\go.ps1 env GOROOT GOPATH GOMODCACHE GOCACHE GOTOOLCHAIN
-.\scripts\go.ps1 build -o .\dist\opencodereview.exe .\cmd\opencodereview
+.\scripts\toolchain\go.ps1 version
+.\scripts\toolchain\go.ps1 env GOROOT GOPATH GOMODCACHE GOCACHE GOTOOLCHAIN
+.\scripts\toolchain\go.ps1 build -o .\dist\opencodereview.exe .\cmd\opencodereview
 ```
 
 The wrapper resolves paths relative to itself, runs from the repository root, and
@@ -38,7 +38,7 @@ the wrapper if the IDE should share these caches.
 Make is not required. Build and start the personal web workbench on Windows:
 
 ```powershell
-.\scripts\go.ps1 build -o .\dist\ocr-web.exe .\cmd\ocr-web
+.\scripts\toolchain\go.ps1 build -o .\dist\ocr-web.exe .\cmd\ocr-web
 .\dist\ocr-web.exe
 ```
 
@@ -87,15 +87,22 @@ with `read:user` and `read:repository` at
 http://10.30.142.20:3000/user/settings/applications. Then run:
 
 ```powershell
-.\scripts\start-web.ps1 -Gitea -Restart
+.\scripts\workbench\start-web.ps1 -Gitea -Restart
 ```
 
 The script prompts for the token with hidden input, replaces any running
 workbench from this project's executable, and runs the application in the
 foreground. Wait for any active repository sync to finish before using
-`-Restart`. The token is passed only through the process environment, not through
-command arguments, history, or files. It restores the caller's previous
-environment when the process exits. Repeat this command after stopping the app.
+`-Restart`. On first configuration, the token is saved as `gitea-token.dpapi` in
+the data directory using Windows DPAPI encryption for the current Windows user.
+Later launches automatically load it, even without `-Gitea`; use
+`.\scripts\workbench\start-web.ps1` for everyday startup. Directly running the executable
+does not load this saved credential. Use `-UpdateGiteaToken` to replace the token,
+or delete the encrypted file to forget it. An existing `OCR_GITEA_TOKEN` process
+environment value takes precedence unless `-UpdateGiteaToken` is supplied.
+The encrypted file is ignored by Git and cannot be reused on another machine or
+Windows account; configure a new token there. The script passes the decrypted
+token through the process environment and restores the caller's environment on exit.
 Omit `-Restart` if no workbench is running. Optional `-Addr` and `-DataDir` flags
 select the listening address and data directory. On Linux, pass `OCR_GITEA_TOKEN`
 through the environment when launching the binary.
@@ -121,6 +128,6 @@ repository hides it from the active list but retains its reviews.
 remains available separately through `opencodereview viewer` on port 5483.
 
 When tests are requested, use `go test ./...` on Linux or
-`.\scripts\go.ps1 test ./...` on Windows, with `LC_ALL=C` in the environment.
+`.\scripts\toolchain\go.ps1 test ./...` on Windows, with `LC_ALL=C` in the environment.
 The optional `-race` flag requires a suitable C compiler. No separate build system
 or additional platform release matrix is maintained.

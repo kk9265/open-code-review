@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/alibaba/open-code-review/internal/reviewcontext"
 )
 
 type Config struct {
@@ -51,13 +53,16 @@ func (c *Config) Validate() error {
 }
 
 type Settings struct {
-	GiteaURL      string `json:"gitea_url"`
-	GiteaUser     string `json:"gitea_user"`
-	ModelEndpoint string `json:"model_endpoint"`
-	ModelName     string `json:"model_name"`
-	Language      string `json:"language"`
-	TokenBudget   int    `json:"token_budget"`
-	Version       int64  `json:"-"`
+	ContextEndpoint    string `json:"context_endpoint"`
+	TokenBudgetEnabled bool   `json:"token_budget_enabled"`
+	GiteaURL           string `json:"gitea_url"`
+	GiteaUser          string `json:"gitea_user"`
+	ModelEndpoint      string `json:"model_endpoint"`
+	ModelSource        string `json:"model_source"`
+	ModelName          string `json:"model_name"`
+	Language           string `json:"language"`
+	TokenBudget        int    `json:"token_budget"`
+	Version            int64  `json:"-"`
 }
 
 func defaultSettings() Settings {
@@ -73,6 +78,15 @@ func validateURL(raw string) error {
 }
 
 func (s *Settings) Validate() error {
+	s.ContextEndpoint = strings.TrimRight(strings.TrimSpace(s.ContextEndpoint), "/")
+	if s.ContextEndpoint != "" {
+		if err := reviewcontext.ValidateEndpoint(s.ContextEndpoint); err != nil {
+			return err
+		}
+	}
+	if s.ModelSource != "" && s.ModelSource != "manual" && s.ModelSource != "aimana" {
+		return errors.New("Choose a supported model connection.")
+	}
 	s.GiteaURL = strings.TrimRight(strings.TrimSpace(s.GiteaURL), "/")
 	s.GiteaUser = strings.TrimSpace(s.GiteaUser)
 	s.ModelEndpoint = strings.TrimRight(strings.TrimSpace(s.ModelEndpoint), "/")

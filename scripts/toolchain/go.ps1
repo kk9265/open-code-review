@@ -2,7 +2,7 @@
 # Copyright 2026 alibaba/open-code-review Contributors
 
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $goCommand = (Get-Command go.exe -CommandType Application -ErrorAction Stop).Source
 $localGo = Join-Path $projectRoot '.local-go/sdk/go/bin/go.exe'
 if (Test-Path -LiteralPath $localGo) {

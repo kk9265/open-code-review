@@ -1,0 +1,2 @@
+# Optional dependency for manage.py --pause-workbench.
+psutil>=5.9,<8

@@ -1,19 +1,20 @@
 {{define "gitea"}}
-<div class="page-heading"><div><div class="eyebrow">GITEA</div><h1>{{t "Gitea repositories"}}</h1><p>{{t "Connect your account and choose a repository to import."}}</p></div><a class="button secondary" href="/settings">{{t "Settings"}}</a></div>
-<section class="panel compact-panel"><div><h3>{{.Settings.GiteaURL}}</h3><p>{{if .GiteaConnected}}{{t "Connected as"}} {{.GiteaLogin}}{{else}}{{t "Use a personal access token to access private repositories."}}{{end}}</p></div><a class="button primary" href="/gitea">{{if .GiteaConnected}}{{t "Refresh repositories"}}{{else}}{{t "Check connection"}}{{end}}</a></section>
+{{template "repository-heading" .}}
+{{template "repository-tabs" .}}
+<section class="panel compact-panel"><div><h3>{{.Settings.GiteaURL}}</h3><p>{{if .GiteaConnected}}{{t "Connected as"}} {{.GiteaLogin}}{{else}}{{t "Use a personal access token to access private repositories."}}{{end}}</p></div><a class="button primary" href="/repositories/import">{{if .GiteaConnected}}{{t "Refresh repositories"}}{{else}}{{t "Check connection"}}{{end}}</a></section>
 {{if .GiteaConnected}}
-<form method="get" action="/gitea" class="list-toolbar gitea-search"><label class="sr-only" for="gitea-search">{{t "Search records"}}</label><input id="gitea-search" name="q" maxlength="200" value="{{.Query}}" placeholder="{{t "Search by name..."}}"><button class="button secondary">{{t "Search"}}</button></form>
+<form method="get" action="/repositories/import" class="list-toolbar gitea-search"><label class="sr-only" for="gitea-search">{{t "Search records"}}</label><input id="gitea-search" name="q" maxlength="200" value="{{.Query}}" placeholder="{{t "Search by name..."}}"><button class="button secondary">{{t "Search"}}</button></form>
 <section class="panel">
 {{if .GiteaRepositories}}<div class="table-scroll"><table><thead><tr><th>{{t "Repository"}}</th><th>{{t "Visibility"}}</th><th>{{t "Default branch"}}</th><th></th></tr></thead><tbody>
 {{range .GiteaRepositories}}<tr><td><strong class="record-title">{{.FullName}}</strong>{{if .Description}}<span class="subtext repo-description">{{.Description}}</span>{{end}}</td><td><span class="pill">{{if .Private}}{{t "Private"}}{{else}}{{t "Public"}}{{end}}</span>{{if .Archived}} <span class="pill neutral">{{t "Archived"}}</span>{{end}}</td><td>{{.DefaultBranch}}</td><td>
-{{if .LocalID}}<a class="button secondary" href="/repositories/{{.LocalID}}">{{t "Open imported repository"}}</a>{{else if .Empty}}<span class="muted">{{t "Empty repository"}}</span>{{else}}<form method="post" action="/gitea/repositories"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="version" value="{{$.Settings.Version}}"><input type="hidden" name="remote_id" value="{{.ID}}"><button class="button primary">{{t "Import and fetch"}}</button></form>{{end}}
+{{if .LocalID}}<a class="button secondary" href="/repositories/{{.LocalID}}">{{t "Open imported repository"}}</a>{{else if .Empty}}<span class="muted">{{t "Empty repository"}}</span>{{else}}<form method="post" action="/repositories/import"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="version" value="{{$.Settings.Version}}"><input type="hidden" name="remote_id" value="{{.ID}}"><button class="button primary">{{t "Import and fetch"}}</button></form>{{end}}
 </td></tr>{{end}}</tbody></table></div>{{else}}<div class="empty"><h3>{{t "No matching repositories."}}</h3><p>{{t "Check the search term and your account permissions."}}</p></div>{{end}}
 </section>
 {{template "pagination" .}}
 {{else}}
 <section class="panel form-panel"><div class="panel-heading"><h2>{{t "Configure Gitea access"}}</h2></div><div class="form-body token-guide">
-<ol><li>{{t "Create a token in Gitea with read:user and read:repository permissions."}} <a class="text-link" href="{{.GiteaApplicationsURL}}" target="_blank" rel="noreferrer">{{t "Open token settings"}} →</a></li><li>{{t "In a local PowerShell window, run this command from the project directory."}}<pre><code>.\scripts\start-web.ps1 -Gitea -Restart</code></pre></li><li>{{t "Paste the token at the hidden prompt and press Enter. Then return here and check the connection."}}</li></ol>
-<p>{{t "The token stays in the running process environment. It is not saved to the database or command history."}}</p>
+<ol><li>{{t "Create a token in Gitea with read:user and read:repository permissions."}} <a class="text-link" href="{{.GiteaApplicationsURL}}" target="_blank" rel="noreferrer">{{t "Open token settings"}} →</a></li><li>{{t "In a local PowerShell window, run this command from the project directory."}}<pre><code>.\scripts\workbench\start-web.ps1 -Gitea -Restart</code></pre></li><li>{{t "Paste the token at the hidden prompt and press Enter. Then return here and check the connection."}}</li></ol>
+<p>{{t "The Windows startup script saves the token encrypted for your Windows user and loads it automatically on future launches."}}</p>
 </div></section>
 {{end}}
 {{end}}
@@ -26,4 +27,12 @@
 <div class="form-footer"><a class="button secondary" href="/repositories/{{.Repository.ID}}">{{t "Refresh status"}}</a>
 {{if and (not .Repository.Archived) (ne .Source.SyncState "queued") (ne .Source.SyncState "running")}}<form method="post" action="/repositories/{{.Repository.ID}}/sync"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="button primary">{{t "Fetch latest code"}}</button></form>{{end}}
 </div></div></section>
+{{end}}
+
+{{define "repository-heading"}}
+<div class="page-heading"><div><div class="eyebrow">{{t "CODEBASES"}}</div><h1>{{t "Repositories"}}</h1><p>{{t "Import, synchronize, and manage your repositories here."}}</p></div><a class="button secondary" href="/settings">{{t "Connection settings"}}</a></div>
+{{end}}
+
+{{define "repository-tabs"}}
+<nav class="repository-tabs" aria-label="{{t "Repository views"}}"><a href="/repositories" {{if eq .Page "repositories"}}aria-current="page"{{end}}>{{t "Added repositories"}}</a><a href="/repositories/import" {{if eq .Page "gitea"}}aria-current="page"{{end}}>{{t "Import from Gitea"}}</a></nav>
 {{end}}
