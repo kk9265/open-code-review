@@ -1,0 +1,301 @@
+diff --git a/backend/app/services/wiki/catalog/code_plan.py b/backend/app/services/wiki/catalog/code_plan.py
+new file mode 100644
+--- /dev/null
++++ b/backend/app/services/wiki/catalog/code_plan.py
+@@ -0,0 +1,276 @@
++# SPDX-License-Identifier: MIT
++"""Deterministic code catalog proposals; never persists or generates documentation."""
++
++import hashlib
++import re
++from collections import defaultdict, deque
++from pathlib import PurePosixPath
++from typing import Any
++
++SOURCE_SUFFIXES = frozenset(
++    {
++        ".go",
++        ".py",
++        ".cpp",
++        ".cc",
++        ".cxx",
++        ".c",
++        ".h",
++        ".hpp",
++        ".cs",
++        ".java",
++        ".kt",
++        ".kts",
++        ".rs",
++        ".js",
++        ".jsx",
++        ".mjs",
++        ".ts",
++        ".tsx",
++        ".lua",
++        ".sh",
++        ".ps1",
++        ".sql",
++        ".vue",
++        ".svelte",
++    }
++)
++RELATIONS = frozenset({"calls", "routes_to", "imports", "inherits", "implements", "uses_config"})
++VERBS = frozenset(
++    {
++        "get",
++        "set",
++        "add",
++        "remove",
++        "delete",
++        "update",
++        "create",
++        "new",
++        "read",
++        "write",
++        "load",
++        "save",
++        "handle",
++        "build",
++        "is",
++        "has",
++        "check",
++        "validate",
++        "register",
++        "list",
++        "find",
++        "parse",
++    }
++)
++
++
++def _identity(prefix: str, value: str) -> str:
++    return prefix + "-" + hashlib.sha256(value.encode()).hexdigest()[:20]
++
++
++def _page(title: str, identity: str, hints: list[str], **extra: Any) -> dict[str, Any]:
++    return {
++        "title": title,
++        "slug": identity,
++        "path": identity,
++        "kind": "page",
++        "topic": title,
++        "source_hints": sorted(hints),
++        "children": [],
++        "status": "proposed",
++        **extra,
++    }
++
++
++def _responsibility(symbol: dict[str, Any]) -> str:
++    qualified = (symbol.get("symbol_id") or "").partition("::")[2]
++    name = qualified or symbol["name"]
++    owner, _, local = name.replace("::", ".").rpartition(".")
++    tokens = re.findall(r"[A-Z]+(?=[A-Z][a-z]|\b)|[A-Z]?[a-z]+|[0-9]+", local or name)
++    terms = [token.lower() for token in tokens if token.lower() not in VERBS]
++    return (owner + "/" if owner else "") + (terms[0] if terms else local or name)
++
++
++def build_code_plan(
++    nodes: list[dict[str, Any]],
++    edges: list[dict[str, Any]],
++    source_files: list[dict[str, Any]],
++    *,
++    large_lines: int = 300,
++    large_symbols: int = 12,
++    feature_limit: int = 80,
++) -> dict[str, Any]:
++    """Return CodeWiki-shaped file and feature trees with explicit evidence gaps."""
++    if large_lines < 1 or large_symbols < 2 or feature_limit < 1:
++        raise ValueError("Split thresholds must be positive; symbol threshold must be at least two")
++    by_id = {node["id"]: node for node in nodes}
++    by_file = defaultdict(list)
++    for node in sorted(nodes, key=lambda item: item["id"]):
++        if node["type"] not in {"file", "config", "directory", "repository", "module", "external"}:
++            by_file[node["file_path"]].append(node)
++    file_pages = []
++    file_ids = {}
++    for source in sorted(source_files, key=lambda item: item["path"]):
++        path = source["path"]
++        if PurePosixPath(path).suffix.lower() not in SOURCE_SUFFIXES:
++            continue
++        symbols = by_file[path]
++        slug = _identity("file", path)
++        file_ids[path] = slug
++        page = _page(
++            path,
++            slug,
++            [path],
++            page_type="file",
++            line_count=source["line_count"],
++            symbol_refs=symbols,
++            gaps=[] if symbols else ["no_indexed_symbols"],
++        )
++        large = source["line_count"] >= large_lines or len(symbols) >= large_symbols
++        page["large_file"] = large
++        if large:
++            groups = defaultdict(list)
++            for symbol in symbols:
++                groups[_responsibility(symbol)].append(symbol)
++            if len(groups) > 1:
++                page["kind"] = "category"
++                for key, members in sorted(groups.items()):
++                    page["children"].append(
++                        _page(
++                            key,
++                            _identity("responsibility", path + "\0" + key),
++                            [path],
++                            page_type="responsibility",
++                            symbol_refs=members,
++                            grouping_basis="declared_owner_and_identifier_terms",
++                            review_required=True,
++                            gaps=["semantic_responsibility_unverified"],
++                        )
++                    )
++            else:
++                page["gaps"].append("large_file_needs_manual_responsibility_split")
++        page["coverage"] = {
++            "indexed_symbols": len(symbols),
++            "assigned_symbols": sum(len(child["symbol_refs"]) for child in page["children"]),
++            "complete_behavior_verified": False,
++        }
++        file_pages.append(page)
++
++    outgoing = defaultdict(list)
++    incoming = set()
++    cross_sources = set()
++    for edge in sorted(edges, key=lambda item: item["id"]):
++        source, target = by_id.get(edge["source_id"]), by_id.get(edge["target_id"])
++        if not source or not target or edge["type"] not in RELATIONS:
++            continue
++        if source["file_path"] not in file_ids or target["file_path"] not in file_ids:
++            continue
++        outgoing[source["id"]].append(edge)
++        incoming.add(target["id"])
++        if source["file_path"] != target["file_path"]:
++            cross_sources.add(source["id"])
++    seeds = {key for key in outgoing if key not in incoming or by_id[key]["type"] == "endpoint"}
++    # Cycles without an entry point still need a visible candidate for inspection.
++    covered = set()
++    features = []
++    for seed in sorted(seeds) + sorted(cross_sources - seeds):
++        if seed in covered and seed not in seeds:
++            continue
++        pending = deque([(seed, 0)])
++        visited = {seed}
++        evidence = []
++        truncated = False
++        while pending:
++            current, depth = pending.popleft()
++            for edge in outgoing[current]:
++                target = edge["target_id"]
++                if depth >= 4 or len(evidence) >= 160:
++                    truncated = True
++                    continue
++                if target not in visited and len(visited) >= 80:
++                    truncated = True
++                    continue
++                evidence.append(edge)
++                if target not in visited:
++                    visited.add(target)
++                    pending.append((target, depth + 1))
++        files = sorted({by_id[key]["file_path"] for key in visited})
++        if len(files) < 2:
++            continue
++        covered.update(visited)
++        features.append(
++            _page(
++                by_id[seed]["name"],
++                _identity("feature", seed),
++                files,
++                page_type="feature",
++                entry_symbol=by_id[seed],
++                symbol_refs=[by_id[key] for key in sorted(visited)],
++                dependency_evidence=evidence,
++                file_page_links=[file_ids[path] for path in files],
++                grouping_basis="directed_static_dependency_reachability",
++                resolution="inferred"
++                if any(edge["confidence"] < 0.8 for edge in evidence)
++                else "resolved",
++                review_required=True,
++                truncated=truncated,
++                gaps=["business_boundary_unverified", "static_resolution_is_incomplete"]
++                + (["traversal_limit_reached"] if truncated else []),
++            )
++        )
++    features.sort(
++        key=lambda page: (
++            0
++            if page["entry_symbol"]["type"] == "endpoint"
++            else 1
++            if re.search(r"(^|[._:])(main|run|start|execute|handle)", page["title"], re.IGNORECASE)
++            else 2,
++            page["truncated"],
++            page["entry_symbol"]["file_path"],
++            page["slug"],
++        )
++    )
++    deferred = [page["entry_symbol"] for page in features[feature_limit:]]
++    candidate_count = len(features)
++    features = features[:feature_limit]
++    for page in file_pages:
++        page["feature_links"] = [
++            feature["slug"] for feature in features if page["slug"] in feature["file_page_links"]
++        ]
++    return {
++        "file_catalog": _directories(file_pages),
++        "feature_catalog": features,
++        "file_count": len(file_pages),
++        "excluded_files": [
++            source["path"] for source in source_files if source["path"] not in file_ids
++        ],
++        "feature_count": len(features),
++        "feature_candidate_count": candidate_count,
++        "deferred_feature_entries": deferred,
++        "feature_limit": feature_limit,
++        "responsibility_page_count": sum(len(page["children"]) for page in file_pages),
++        "limitations": [
++            "candidate_plan_only",
++            "no_documentation_generated",
++            "identifier_groups_do_not_prove_responsibilities",
++            "dependency_groups_do_not_prove_business_features",
++        ],
++    }
++
++
++def _directories(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
++    roots = []
++    directories = {}
++    for page in pages:
++        parent = roots
++        parts = PurePosixPath(page["source_hints"][0]).parts[:-1]
++        for depth in range(len(parts)):
++            path = "/".join(parts[: depth + 1])
++            if path not in directories:
++                item = _page(parts[depth], _identity("directory", path), [], page_type="directory")
++                item["kind"] = "category"
++                parent.append(item)
++                directories[path] = item
++            parent = directories[path]["children"]
++        parent.append(page)
++    return roots
+diff --git a/backend/app/services/wiki/agent_workflow.py b/backend/app/services/wiki/agent_workflow.py
+--- a/backend/app/services/wiki/agent_workflow.py
++++ b/backend/app/services/wiki/agent_workflow.py
+@@ -26,6 +26,16 @@
+     def __init__(self, *, store: CodeWikiStore, retriever: GraphRAGRetriever) -> None:
+         self.store = store
+         self.retriever = retriever
++
++    def plan_code_catalog(self, repo_id: str, source_files: list[dict[str, Any]]) -> dict[str, Any]:
++        """Propose file and feature trees without changing any saved catalog or page."""
++        from dataclasses import asdict
++
++        from backend.app.services.wiki.catalog.code_plan import build_code_plan
++
++        nodes, edges = self.store.get_graph(repo_id)
++        return build_code_plan([asdict(node) for node in nodes],
++                               [asdict(edge) for edge in edges], source_files)
+ 
+     async def plan(self, repo_id: str, *, language_code: str = "en") -> dict[str, Any]:
+         language = normalize_language(language_code)

@@ -1,0 +1,5 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+.wiki-heading { display: flex; gap: 20px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.wiki-heading h1 { margin: 0; }
+#wiki-version { color: #667b72; font-size: 13px; }
+#wiki-frame { width: 100%; height: calc(100vh - 215px); min-height: 550px; border: 1px solid #dce5e1; border-radius: 8px; background: #f4f7f6; }

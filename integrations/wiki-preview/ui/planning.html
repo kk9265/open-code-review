@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeWiki Catalog Plan</title><link rel="stylesheet" href="/style.css">
+  <script src="/catalog.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/planning">W</a><span id="product"></span><span class="readonly" id="readonly"></span><a class="review-return" href="http://127.0.0.1:5491/">LoginServer Wiki</a><a class="review-return" id="back-review" href="http://127.0.0.1:5484/reviews"></a></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">CODEWIKI / CATALOG PLANNING</p><h1 id="heading"></h1><p class="subtitle" id="subtitle"></p></div><span class="offline" id="offline"></span></div>
+    <div class="snapshot-toolbar"><label for="snapshot" id="snapshot-label"></label><select id="snapshot"></select><button id="refresh" type="button"></button></div>
+    <p id="message" role="status" class="message"></p>
+    <section id="workspace" hidden>
+      <div class="version-card"><strong id="repository"></strong><span id="branch" class="branch"></span><p><code id="commit"></code></p><p id="producer" class="muted"></p><p id="notice" class="muted"></p></div>
+      <div class="stats" id="stats"></div>
+      <details class="directory-filter" open>
+        <summary id="directory-filter-title"></summary>
+        <label for="excluded-directories" id="directory-filter-label"></label>
+        <textarea id="excluded-directories" rows="3" placeholder=".ai/&#10;.claude/&#10;3Party/"></textarea>
+        <p id="directory-filter-help" class="muted"></p>
+        <div class="filters"><button id="apply-directories" type="button"></button><button id="clear-directories" type="button"></button><span id="directory-filter-status" role="status"></span></div>
+      </details>
+      <div class="filters" id="views"></div>
+      <div class="explorer">
+        <aside class="page-panel"><label for="search" id="search-label" class="sr-only"></label><input id="search" type="search"><div id="page-list" class="page-list"></div></aside>
+        <article id="page-detail" class="detail-panel" aria-live="polite"></article>
+      </div>
+      <footer><span id="footer"></span><a id="raw-json" target="_blank" rel="noopener"></a></footer>
+    </section>
+  </main>
+</body>
+</html>

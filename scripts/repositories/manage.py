@@ -4,16 +4,17 @@
 """Maintain workbench repository caches without the Web API."""
 
 import argparse
-import ctypes
 import json
 import os
 from pathlib import Path
-import shutil
 import signal
 import sqlite3
 import subprocess
 import sys
 from contextlib import contextmanager
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from tooling import go_command, saved_token
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,57 +24,12 @@ WINDOWS = sys.platform == "win32"
 def build_tool():
     suffix = ".exe" if WINDOWS else ""
     tool = ROOT / "dist" / ("ocr-repo" + suffix)
-    sdk = ROOT / ".local-go" / "sdk" / "go" / "bin" / ("go" + suffix)
-    go = str(sdk) if sdk.is_file() else shutil.which("go")
-    if not go:
-        raise RuntimeError("Go is unavailable. Prepare the project Go 1.26.9 toolchain first.")
-    env = os.environ.copy()
-    env.pop("GOROOT", None)
-    env.update(
-        GOENV="off", GOTOOLCHAIN="go1.26.9",
-        GOPATH=str(ROOT / ".local-go" / "work"),
-        GOMODCACHE=str(ROOT / ".local-go" / "work" / "pkg" / "mod"),
-        GOCACHE=str(ROOT / ".local-go" / "build-cache"),
-        GOOS="windows" if WINDOWS else "linux",
-    )
-    # Let Go select the host architecture instead of inheriting cross-build settings.
+    go, env = go_command(ROOT)
+    env["GOOS"] = "windows" if WINDOWS else "linux"
+    # Maintenance must build a native executable, even after a cross-build.
     env.pop("GOARCH", None)
     subprocess.run([go, "build", "-o", str(tool), "./cmd/ocr-repo"], cwd=ROOT, env=env, check=True)
     return tool
-
-
-def saved_token(data_dir):
-    token = os.environ.get("OCR_GITEA_TOKEN", "").strip()
-    if token:
-        return token
-    if not WINDOWS:
-        raise RuntimeError("Set OCR_GITEA_TOKEN in the process environment before fetching.")
-    token_file = data_dir / "gitea-token.dpapi"
-    if not token_file.is_file():
-        raise RuntimeError("No saved token. Configure it with scripts/workbench/start-web.ps1 -Gitea first.")
-    from ctypes import wintypes
-
-    class Blob(ctypes.Structure):
-        _fields_ = [("size", wintypes.DWORD), ("data", ctypes.POINTER(ctypes.c_ubyte))]
-
-    crypt = ctypes.WinDLL("crypt32", use_last_error=True)
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    crypt.CryptUnprotectData.argtypes = [ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.c_void_p,
-                                        ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(Blob)]
-    crypt.CryptUnprotectData.restype = wintypes.BOOL
-    kernel.LocalFree.argtypes = [ctypes.c_void_p]
-    kernel.LocalFree.restype = ctypes.c_void_p
-    raw = bytes.fromhex(token_file.read_text(encoding="utf-8-sig").strip())
-    buffer = (ctypes.c_ubyte * len(raw)).from_buffer_copy(raw)
-    source = Blob(len(raw), buffer)
-    result = Blob()
-    if not crypt.CryptUnprotectData(ctypes.byref(source), None, None, None, None, 1, ctypes.byref(result)):
-        raise RuntimeError("Cannot decrypt the saved token. Run as the Windows user who saved it.")
-    try:
-        return ctypes.string_at(result.data, result.size).decode("utf-16-le").strip()
-    finally:
-        ctypes.memset(result.data, 0, result.size)
-        kernel.LocalFree(result.data)
 
 
 def records_for(tool, data_dir):

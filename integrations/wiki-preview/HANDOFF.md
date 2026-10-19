@@ -1,124 +1,84 @@
-# AI Wiki 接入交接
+# Wiki 工作区交接
 
-交接日期：2026-10-18。仓库：`E:\code_review\open-code-review`，Windows PowerShell，当前分支 `main`。
+更新：2026-10-19。工作目录：`E:\code_review\open-code-review`，Windows PowerShell，分支 `main`。
 
-用户正在切换模型。本次交接只保存状态，不意味着授权下一阶段开发。上一轮要求的四项工作已完成：固化 CodeWiki 补丁和依赖、独立任务队列、版本隔离、只预览模式。实现是独立 CLI，不是已经接入工作台的 Wiki 网站。
+## 接手先读
 
-## 必须保持的约束
+用户此次只要求精简交接，准备切换当前对话模型；没有要求重新生成 Wiki 或更改审查模型。上一轮授权的入口与导航整理已完成，没有待执行的生成任务。
 
-- **不得调用模型，不得生成或更新 Wiki 正文、目录。** 用户明确担心生成成本失控。未来只有用户明确重新授权才可做真实生成。
-- **不得改动现有审查流程。** 不接入审查队列、审查数据库、审查 worker、工作台路由或模型设置。
-- 不运行旧验证脚本 `run_probe.py` 的生成命令，不运行上游 `wiki`、`watch` 或默认会生成内容的 `update` 命令。
-- 不为验证而运行 `ocr review`，它可能调用模型。本轮没有提交或创建 PR，因此没有触发提交前审查要求。
-- 不清理、重置、暂存或覆盖用户已有的未提交改动。根目录 `HANDOFF.md` 在开始前已经被删除，保留这个删除状态。
-- 遵守根目录 AGENTS.md：Windows Go 命令用 `scripts/toolchain/go.ps1`；源码英文、SPDX、LF；中文说明放 Markdown。不要用默认编码的 PowerShell 文件重写命令。
+- Wiki 面向目标仓库的文件职责、复杂功能和大文件职责拆页；提交影响分析只是维护辅助。
+- **助手不得撰写、补写或改写 Wiki 正文。** 正文只能由现有 CodeWiki 工具调用用户指定的 AI Mana 模型生成；助手负责接入、运行与机械验证。
+- 阅读、导航、图表和引用样式可以继续维护，默认零模型调用；不要为验证运行 `ocr review`、旧生成探针、`wiki/watch/update` 或生成执行器。
+- 不覆盖初始 Wiki，不改审查队列、审查执行流程或生产模型设置，不自行扩展到其他服。
+- 工作区有大量既存暂存/未暂存改动，不重置、清理、整体格式化、暂存或提交。根目录 `HANDOFF.md` 和 `internal/platform/autonomous_review.go` 原本已删除，保留该状态。
+- 遵守 AGENTS.md：Go 用 `scripts/toolchain/go.py`；源码英文、SPDX、LF；中文 UI 放 i18n。不要用默认编码的 PowerShell 命令重写源文件。
 
-## 当前实现
+## 已交付状态
 
-新增代码全部在 `integrations/wiki-preview/`，当前为未跟踪、未提交文件。没有修改现有生产代码。
+唯一用户入口：<http://127.0.0.1:5484/wiki>。Review 侧栏「Wiki」中切换「Wiki 正文／目录规划」，不再要求打开独立页面。
 
-| 文件 | 职责 |
+- 正文：文件／复杂功能双目录，职责子页挂接父文件；搜索、面包屑、当前页标记。
+- 正文与规划各自恢复页面、版本、搜索及展开状态。规划切换仓库版本时顶部元信息同步更新。
+- Mermaid 本机渲染，支持适应宽度、缩放、查看原始代码；异常时保留代码。
+- 正文引用显示为小号上标，悬停显示源码位置；文末 Sources 默认折叠；点击定位并高亮源码行，可返回原正文。
+- 规划目录过滤支持按相对目录排除及清空，只影响展示，按仓库在浏览器保存。
+- 内部 5491 正文服务和 5490 规划服务经 Review 同源只读代理 `/wiki/read/*`、`/wiki/plan/*` 嵌入。固定本机目标，不转发 Cookie/Authorization，不提供生成入口。后台服务停止时返回 503，需要启动服务，不会自动生成。
+
+## 当前 Wiki 与模型
+
+- 目标：`zgame / master / LoginServer`，冻结提交 `9052b9e77e681315a200a8489dfc6938d81024db`；不是 open-code-review 功能自身的 Wiki。
+- 已完成 **114/114 页**，全部通过 CodeWiki 工具校验，无失败项：17 文件页、88 职责子页、9 跨文件功能页。
+- 来源为 112 篇 `glm-5.3` + 2 篇 `deepseek-flash`。后两篇补齐原先失败页，没有重写原 112 篇。
+- AI Mana 显示名 **DeepSeek V4.1 Flash** 对应 ID **`deepseek-flash`**，不是 `deepseek-v4-flash`。名称映射已从本机 `%LOCALAPPDATA%\.aimana/client-runtime-config.json` 验证，真实调用返回 ID 也已核实。
+- Wiki 执行选择持久化于 `.ocr-data/wiki-loginserver-generated/generation-model.json`，当前为 `aimana / deepseek-flash`。审查设置仍为 `aimana / glm-5.3`，两者没有联动修改。
+- “工具校验通过”不代表语义完整性已人工确认；职责拆页和复杂功能边界仍需后续评估。此轮只做了界面整理，没有生成/修改正文。
+
+## 关键源码
+
+| 位置 | 用途 |
 | --- | --- |
-| `worker.py` | CLI、固定入队参数、验证版本指纹、单次执行预览任务 |
-| `store.py` | 独立 SQLite 队列、去重、合并、领取租约、快照和当前预览指针 |
-| `git_data.py` | 本地 Git 提交、树、差异、范围及已有页面引用清单读取 |
-| `planner.py` | 只预览影响计划，无 CodeWiki 分析器或模型调用 |
-| `prepare.py` | 从本地克隆复现固定上游提交并应用补丁，校验源码和可选依赖版本 |
-| `vendor-lock.json` | 上游提交、补丁和依赖清单哈希、修复后源码文件哈希 |
-| `requirements-windows-py312.lock` | 已验证的 Windows Python 图分析依赖版本 |
-| `patches/0001-incremental-graph.patch` | CodeWiki 增量代码图修复及其回归测试 |
-| `CODEWIKI-LICENSE.txt` | 上游 MIT 许可证 |
-| `test_preview.py` | 21 项独立预览模块测试 |
-| `USAGE.md` | 操作说明、队列规则、输入格式和限制 |
+| `internal/platform/wiki.go`、`wiki_test.go` | Review Wiki 页及固定目标只读代理、回归测试 |
+| `internal/platform/ui/wiki.html`、`ui/static/wiki.js/css` | 统一工作区、页签和阅读位置恢复 |
+| `integrations/wiki-preview/generated_viewer.py` | 正式只读正文服务、文件树、面包屑、源码读取 |
+| `integrations/wiki-preview/ui/wiki-reader.js/css` | 阅读状态、引用显示、源码行高亮 |
+| `integrations/wiki-preview/ui/wiki-diagrams.js` | Mermaid 渲染与缩放 |
+| `integrations/wiki-preview/viewer.py`、`ui/catalog.js` | 只读规划服务及双目录预览、过滤、状态恢复 |
+| `catalog_preview.py`、`graph_data.py`、`graph_impact.py` | 冻结源码/代码图的规划与影响分析 |
+| `prepare.py`、`vendor-lock.json`、`patches/` | 锁定 CodeWiki 与两份二次开发补丁 |
+| `USAGE.md` | 完整运行、依赖与预览操作说明 |
 
-预览模块自身只依赖 Python 标准库和本地 Git，不需要安装或导入 CodeWiki、LiteLLM、OpenAI SDK，不读取模型凭证。`prepare.py` 不安装依赖，也不联网克隆；依赖清单用于固定和校验之前验证过的图分析环境。
+CodeWiki 固定提交 `7be8f702504cbd69aec6491a2e4e81f5311e0ba6`，MIT；通过既有原生生成器、提示词、引用校验保存正文。不要手工修改锁定上游副本或生成正文来修正内容。
 
-### 队列和版本语义
+## 数据与复用位置
 
-- 默认状态目录：`.ocr-data/wiki-preview/`；独立数据库：`wiki-preview.sqlite3`。
-- 三张独立表：`jobs`、`snapshots`、`current_previews`。
-- 仓库身份由本地规范化绝对路径决定，同远程不同克隆目前视为不同仓库。
-- 入队时固定分支目标提交、显式基线、范围和页面引用清单；分支前进或清单后来被修改，不改变已入队任务。
-- 同输入及实现版本去重；同分支连续请求合并尚未执行的旧任务，旧记录为 `superseded`。
-- 领取使用 SQLite 写事务和 300 秒租约；过期后下次 `work-once` 可重新领取；旧领取令牌不能完成新领取者的任务。
-- 较早任务完成不能覆盖更新请求的当前预览。失败保留已存在的当前预览。
-- 快照身份包含仓库、分支、提交和配置。文件路径为 `snapshots/<哈希前两位>/<完整哈希>.json`，避免 Windows 长路径问题。
-- 快照文件先写临时文件再替换，数据库事务登记快照及当前指针；已存在内容不能被不同内容覆盖，读取时检查 SHA256。
-- 发布的是**预览快照**，不是 Wiki。快照保存 Git 树路径及对象标识、差异和计划，不保存生成正文，也不复制完整源码。
-- 预览实现版本变化时，旧排队任务会失败并要求重新入队，不会用新实现悄悄产出旧配置身份的结果。
+均位于项目 `.ocr-data/`，多为忽略文件，切换对话模型后继续复用，不重复构图或生成。
 
-### 预览精度和未实现部分
+- `wiki-loginserver-generated/`：正文 `codewiki.sqlite3`、`manifest.json`、`markdown/*.md`、`progress.json`、逐页 `page-models.json` 与 `model-audit.jsonl`。manifest 保存正文哈希和逐页模型来源。
+- `wiki-zgame-plan/zgame`：冻结源码检出；`wiki-zgame-plan/graph.sqlite3`：已建代码图。检出依赖本地托管 bare 库 `repositories/1.git` 的对象，不修改这些源码或引用。
+- `wiki-code-plan/`：全库规划状态；zgame 快照 `39de705b8385fa00e1738069f8655cb1c9287cb9a77b1552192d3bf29a3ceace`。其中还保存 open-code-review 历史规划，不能混作游戏仓库结果。
+- `wiki-loginserver-plan/`：LoginServer 范围规划及原生工具生成执行器 `run_generation.py`。**不要为接手而运行**；执行器会跳过已生成页面，改模型参数也不代表重生成全部。
+- `wiki-code-plan-validation/pinned-release/`：已校验的 CodeWiki 副本；`wiki-validation/venv/Scripts/python.exe`：生成/图分析环境。
+- `wiki-validation/baseline/`：受保护的初始 Wiki。正文输出中的 `protected-baseline.json`、`model-switch-baseline.json`、`reader-change-proof.json` 保存完整性核验依据。
+- `wiki-mermaid/node_modules/mermaid/dist`：固定 `mermaid@11.15.0` 本机资源。正文读取依赖见 `requirements-reader.txt`。
+- 最终界面截图：`wiki-loginserver-generated/unified-review-wiki.png`。
 
-影响分析目前仅使用 Git 差异、已有页面的源码引用和页面父子关系。直接受影响页面给出原因，新增或重命名路径给出目录检查建议；未能确认的间接影响列在 `potentially_affected_pages`，不能认定为安全复用。
+旧 `5488` 是提交影响预览，旧 `.ocr-data/wiki-loginserver-generated/serve.py` 已被正式阅读服务替代，均不是当前用户入口。
 
-缺少引用清单时返回 `catalog_required=true`，不虚构目录或页面。清单提交必须等于比较基线。token 估算为未知，计划模型调用数始终是 0。
+## 启动与验证
 
-当前没有：工作台 UI、后台常驻轮询、Webhook、自动接入审查、真实生成、Wiki 发布或代码图依赖影响分析。没有把旧的 CodeWiki 原生 `watch` 当作自动 Wiki 更新器。
+当前 Review 运行 `dist/ocr-web.exe`，监听 5484。Go 模板/静态资源嵌入二进制，修改后需构建并安全重启；独立 Python 静态 UI 改动刷新即可，Python 服务端代码改动需重启对应服务。
 
-## 已完成的验证
-
-### 当前独立预览模块
-
-- 21 项测试通过：并发去重、任务合并、竞争领取、过期租约隔离、过期旧任务不复活、乱序完成、失败重试、分支与配置隔离、快照完整性、孤立快照恢复、入队参数冻结、分支前进、基线校验、重命名、中文文件名、禁网运行，以及生成子命令不可用。
-- Ruff 检查通过。
-- `scripts/toolchain/go.ps1 run scripts/checks/verify-english-only.go` 通过，扫描 486 个源码文件。
-- 新增源码均为 LF，带 SPDX；`git diff --check` 通过。没有运行 Go 全套测试，当前没有修改 Go 源码。
-- 固定补丁已在全新本地克隆上成功应用并校验；原验证 Python 环境的依赖版本校验通过。
-- 真实仓库预览：`1fc587e408dca15e4d4e31cc700df7a209670b19` → `8aae142ff6b10320cb5a51076a4ad74942c8f986`，识别 54 个变化文件，27 个直接受影响页面。这里只读取了历史页面引用，没有生成页面。
-- 两版预览均可读取，重复请求返回同一任务，下一次执行返回 `idle`。
-- **本轮模型调用 0，Wiki 生成 0。**
-
-验证产物位于 `.ocr-data/wiki-preview-validation/`：
-
-- `validation.json`：汇总结果。
-- `preview-example.json`：真实提交预览样例。
-- `state/wiki-preview.sqlite3`：独立验证队列，有 2 个成功任务。
-- `state/snapshots/`：两版不可变预览。
-- `pinned-codewiki/`：用于复现补丁的独立本地克隆。
-
-上述状态目录是验证用目录，不是默认运行目录。没有启动后台服务。
-
-### 之前的增量图修复
-
-上游固定为 `PorunC/CodeWiki`，提交 `7be8f702504cbd69aec6491a2e4e81f5311e0ba6`，版本 0.6.5。原始增量实现会丢失图关系，并反复误报配置文件新增。
-
-补丁在文件节点中保存完整 AST 符号快照，恢复符号顺序及所有解析字段；配置节点参与哈希比较；没有快照的旧索引自动重新解析一次，随后无变化返回零解析；内部解析缓存排除于 GraphRAG 模型上下文。
-
-此前修复验证：31 项测试通过，7 个源码文件类型检查通过。真实提交增量只解析 23 个文件，图结果与全量分析逐项相等：5,679 个节点、35,103 条边。单文件修改只解析 1 个文件，无变化解析 0 个文件。该轮也是零模型调用、零 Wiki 生成。
-
-原始修复和日志仍在 `.ocr-data/wiki-validation/`，包括 `graph-fix-results.json`、`graph-fix-checks.json` 和修改后的 `vendor/CodeWiki/`。当前可复用补丁已复制进项目，不再只存在于忽略目录。
-
-## 安全的复测命令
-
-在 `E:\code_review\open-code-review` 执行：
+只读服务启动命令（仓库根目录）：
 
 ```powershell
-$env:LC_ALL='C'
-python -m unittest discover -s integrations/wiki-preview -p 'test_*.py' -v
-.ocr-data/wiki-validation/venv/Scripts/ruff.exe check integrations/wiki-preview
-./scripts/toolchain/go.ps1 run scripts/checks/verify-english-only.go
+python integrations/wiki-preview/generated_viewer.py --state .ocr-data/wiki-loginserver-generated --port 5491
+python integrations/wiki-preview/viewer.py --state .ocr-data/wiki-code-plan --port 5490
 ```
 
-只读查看已有预览：
+已有服务不要重复启动。Review 重启前先确认构建成功、没有活动审查任务并备份程序；复用已有 DPAPI 凭据，不能输出明文或无凭据替换运行服务。详细启动与依赖见 USAGE.md。
 
-```powershell
-python integrations/wiki-preview/worker.py --state .ocr-data/wiki-preview-validation/state current
-python integrations/wiki-preview/worker.py --state .ocr-data/wiki-preview-validation/state snapshots
-```
+上一轮已通过：Go 全量测试、全量 vet、Python 52 项测试、Ruff、JS 语法、英文源码及 diff 检查。浏览器已验证双目录、职责面包屑、版本/页面/搜索恢复、3 张 Mermaid、源码引用折叠和行范围回跳；114 篇正文、manifest、模型审计及初始 Wiki 哈希未变化。此次仅精简交接，不重复执行生成或全量测试。
 
-真实比较的入队命令如下。只有用户需要继续验证时再运行，不必为接手而重复：
+## 后续工作边界
 
-```powershell
-python integrations/wiki-preview/worker.py --state .ocr-data/wiki-preview-validation/state enqueue --repo . --branch main --commit 8aae142ff6b10320cb5a51076a4ad74942c8f986 --baseline 1fc587e408dca15e4d4e31cc700df7a209670b19 --catalog .ocr-data/wiki-validation/baseline/manifest.json
-python integrations/wiki-preview/worker.py --state .ocr-data/wiki-preview-validation/state work-once
-```
-
-`--baseline` 不会自动选择上一个预览提交。使用不同实现版本会改变任务身份；不要把这种情况当作去重失效。
-
-## 工作区保护和后续接手
-
-工作区本来就有大量审查功能改动，包括 `go.mod`、`internal/platform/`、`internal/agent/`、`internal/llmloop/`、`internal/session/`、`internal/tool/` 以及迁移 009 至 013 等新文件；这些不是本次 Wiki 工作的修改。根目录 `HANDOFF.md` 和 `internal/platform/autonomous_review.go` 也原本处于删除状态。
-
-先读本文件、`USAGE.md` 和 `git status --short`。不要执行全仓库恢复、格式化、暂存、提交或清理来“整理”这些用户改动。当前 Wiki 模块和本交接文件尚未提交。
-
-用户此次仅请求交接。下一轮应承接其新指令，不自行开始真实生成、UI 接入或后台任务。若用户要求继续改进预览，可以优先讨论代码图间接影响分析，但仍须保持零模型调用，并继续与审查流程隔离。
+入口和导航两项已完成。尚未开始的建议是 LoginServer 内容质量评估（重复拆页、职责粒度、功能覆盖），之后再考虑增量更新和其他服。**等待用户下一条具体指令**；需要修正文时仍须经 CodeWiki 和指定 AI Mana 模型完成，助手不能代写。

@@ -1,6 +1,6 @@
 # Windows project-local Go
 
-This repository uses Go 1.26.9. The PowerShell wrapper runs the pinned toolchain
+This repository uses Go 1.26.9. The Python wrapper runs the pinned toolchain
 without changing the system Go installation or the user's persistent Go settings.
 
 On 2026-10-15, the official Windows amd64 archive was installed locally and its
@@ -10,14 +10,14 @@ the CLI built successfully, and the system installation remained Go 1.24.3.
 From the repository root:
 
 ```powershell
-.\scripts\toolchain\go.ps1 version
-.\scripts\toolchain\go.ps1 env GOROOT GOPATH GOMODCACHE GOCACHE GOTOOLCHAIN
-.\scripts\toolchain\go.ps1 build -o .\dist\opencodereview.exe .\cmd\opencodereview
+python scripts/toolchain/go.py version
+python scripts/toolchain/go.py env GOROOT GOPATH GOMODCACHE GOCACHE GOTOOLCHAIN
+python scripts/toolchain/go.py build -o .\dist\opencodereview.exe .\cmd\opencodereview
 ```
 
 The wrapper resolves paths relative to itself, runs from the repository root, and
-restores the caller's environment and working directory when it finishes. It
-forwards Go arguments and exit codes. Invoke it normally; do not dot-source it.
+leaves the caller's environment and working directory unchanged. It forwards Go
+arguments and exit codes. Use Python 3.12 or newer for project maintenance tools.
 
 The local SDK, when installed, is `.local-go/sdk/go`. If it is absent, the system
 `go.exe` bootstraps Go 1.26.9 using Go's toolchain download mechanism. This requires
@@ -38,7 +38,7 @@ the wrapper if the IDE should share these caches.
 Make is not required. Build and start the personal web workbench on Windows:
 
 ```powershell
-.\scripts\toolchain\go.ps1 build -o .\dist\ocr-web.exe .\cmd\ocr-web
+python scripts/toolchain/go.py build -o .\dist\ocr-web.exe .\cmd\ocr-web
 .\dist\ocr-web.exe
 ```
 
@@ -46,11 +46,7 @@ Only Windows and Linux are supported. On Linux, with Go installed, run from the
 repository root to use the same pinned version and isolated caches:
 
 ```bash
-export GOENV=off GOTOOLCHAIN=go1.26.9
-export GOPATH="$PWD/.local-go/work"
-export GOMODCACHE="$GOPATH/pkg/mod"
-export GOCACHE="$PWD/.local-go/build-cache"
-CGO_ENABLED=0 go build -o ./dist/ocr-web ./cmd/ocr-web
+CGO_ENABLED=0 python scripts/toolchain/go.py build -o ./dist/ocr-web ./cmd/ocr-web
 ./dist/ocr-web
 ```
 
@@ -87,25 +83,28 @@ with `read:user` and `read:repository` at
 http://10.30.142.20:3000/user/settings/applications. Then run:
 
 ```powershell
-.\scripts\workbench\start-web.ps1 -Gitea -Restart
+python -m pip install -r scripts/requirements.txt
+python scripts/workbench/start-web.py --gitea --restart
 ```
 
 The script prompts for the token with hidden input, replaces any running
 workbench from this project's executable, and runs the application in the
 foreground. Wait for any active repository sync to finish before using
-`-Restart`. On first configuration, the token is saved as `gitea-token.dpapi` in
+`--restart`. On first configuration, the token is saved as `gitea-token.dpapi` in
 the data directory using Windows DPAPI encryption for the current Windows user.
-Later launches automatically load it, even without `-Gitea`; use
-`.\scripts\workbench\start-web.ps1` for everyday startup. Directly running the executable
-does not load this saved credential. Use `-UpdateGiteaToken` to replace the token,
+Later launches automatically load it, even without `--gitea`; use
+`python scripts/workbench/start-web.py` for everyday startup. Directly running the executable
+does not load this saved credential. Use `--update-gitea-token` to replace the token,
 or delete the encrypted file to forget it. An existing `OCR_GITEA_TOKEN` process
-environment value takes precedence unless `-UpdateGiteaToken` is supplied.
+environment value takes precedence unless `--update-gitea-token` is supplied.
 The encrypted file is ignored by Git and cannot be reused on another machine or
 Windows account; configure a new token there. The script passes the decrypted
-token through the process environment and restores the caller's environment on exit.
-Omit `-Restart` if no workbench is running. Optional `-Addr` and `-DataDir` flags
-select the listening address and data directory. On Linux, pass `OCR_GITEA_TOKEN`
-through the environment when launching the binary.
+token only through the child process environment, leaving the caller unchanged.
+Omit `--restart` if no workbench is running. Optional `--addr` and `--data-dir` flags
+select the listening address and data directory. On Linux, the same Python entry
+point accepts `OCR_GITEA_TOKEN` or hidden input with `--gitea`; hidden input is used
+for that launch only and is not persisted. Existing Windows DPAPI files remain
+compatible with the Python launcher and repository maintenance tool.
 
 At http://127.0.0.1:5484/gitea, check the connection, search repositories, then
 choose Import and fetch. Imports are idempotent by Gitea server and repository
@@ -128,6 +127,6 @@ repository hides it from the active list but retains its reviews.
 remains available separately through `opencodereview viewer` on port 5483.
 
 When tests are requested, use `go test ./...` on Linux or
-`.\scripts\toolchain\go.ps1 test ./...` on Windows, with `LC_ALL=C` in the environment.
+`python scripts/toolchain/go.py test ./...` on Windows, with `LC_ALL=C` in the environment.
 The optional `-race` flag requires a suitable C compiler. No separate build system
 or additional platform release matrix is maintained.

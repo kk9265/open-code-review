@@ -12,13 +12,53 @@ def digest(value):
     ).hexdigest()
 
 
-def git(repo, *args):
+def git(repo, *args, input_data=None):
     return subprocess.check_output(
         ["git", "-c", "protocol.allow=never", "-C", str(repo), *args],
         stderr=subprocess.PIPE,
         timeout=120,
+        input=input_data,
         env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"},
     )
+
+
+def blob_hashes(repo, entries):
+    return {
+        path: value["sha256"] for path, value in blob_metadata(repo, entries).items()
+    }
+
+
+def blob_metadata(repo, entries):
+    oids = sorted({entry["oid"] for entry in entries})
+    body = git(
+        repo,
+        "cat-file",
+        "--batch",
+        input_data="".join(oid + "\n" for oid in oids).encode("ascii"),
+    )
+    result = {}
+    offset = 0
+    for oid in oids:
+        end = body.index(b"\n", offset)
+        actual, kind, size = body[offset:end].decode("ascii").split()
+        size = int(size)
+        offset = end + 1
+        if actual != oid or kind != "blob":
+            raise ValueError("Expected a Git blob: " + oid)
+        content = body[offset : offset + size]
+        text = (
+            content.decode("utf-8", errors="replace")
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+        )
+        result[oid] = {
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "line_count": content.count(b"\n")
+            + int(bool(content) and not content.endswith(b"\n")),
+        }
+        offset += size + 1
+    return {entry["path"]: result[entry["oid"]] for entry in entries}
 
 
 def repository(path):

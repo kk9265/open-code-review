@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+.source-reference { font-size: .72em; line-height: 0; margin: 0 2px; white-space: nowrap; }
+.source-reference a { text-decoration: none; padding: 2px; border-radius: 3px; }
+.source-reference a:hover, .source-reference a:focus-visible { background: #e6f3ec; text-decoration: underline; }
+.source-evidence { border-top: 1px solid #dce5e1; margin-top: 30px; padding-top: 16px; }
+.source-evidence > summary { font-weight: 600; }
+.source-evidence > ul { font-size: 13px; }
+.source-selected { background: #fff1ad; display: inline-block; min-width: 100%; }
+.diagram-toolbar { display: flex; gap: 8px; }
+.diagram-toolbar button { border: 1px solid #dce5e1; border-radius: 5px; background: white; color: #187561; padding: 5px 12px; cursor: pointer; }
+[hidden] { display: none !important; }
+html[data-wiki-base] body > header { display: none; }
+body:has(.reader-layout) main { max-width: none; padding: 14px; margin: 0; border: 0; background: transparent; }
+.reader-layout { display: grid; grid-template-columns: minmax(230px, 285px) minmax(0, 1fr); gap: 16px; }
+.reader-sidebar { position: sticky; top: 10px; align-self: start; max-height: calc(100vh - 35px); overflow: auto; padding: 14px; background: white; border: 1px solid #dce5e1; border-radius: 8px; }
+.reader-sidebar label { display: block; font-size: 13px; }
+#reader-search { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #dce5e1; border-radius: 5px; margin: 8px 0; }
+.reader-tabs { display: flex; gap: 6px; margin: 8px 0; }
+.reader-tabs button { padding: 6px 10px; border: 1px solid #dce5e1; border-radius: 5px; background: white; cursor: pointer; }
+.reader-tabs button[aria-pressed="true"] { background: #e6f3ec; color: #187561; }
+.reader-page { display: block; padding: 7px; overflow-wrap: anywhere; text-decoration: none; font-size: 12px; }
+.reader-page[aria-current="page"] { background: #e6f3ec; border-radius: 5px; font-weight: 600; }
+.reader-file summary { display: list-item; }
+.reader-file summary a { display: inline; }
+.reader-children { border-left: 2px solid #dce5e1; margin-left: 8px; padding-left: 7px; }
+.reader-article { min-width: 0; background: white; border: 1px solid #dce5e1; border-radius: 8px; padding: 22px; }
+.reader-breadcrumbs { font-size: 12px; color: #71837c; overflow-wrap: anywhere; padding-bottom: 12px; border-bottom: 1px solid #dce5e1; }
+@media(max-width:700px) { .reader-layout { grid-template-columns: 1fr; }.reader-sidebar { position: static; max-height: 300px; }.reader-article { padding: 14px; } }

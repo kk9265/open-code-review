@@ -63,9 +63,10 @@ def main():
             ["git", "-C", str(source), "checkout", "--detach", lock["commit"]],
             check=True,
         )
-        subprocess.run(
-            ["git", "-C", str(source), "apply", str(HERE / lock["patch"])], check=True
-        )
+        for patch in lock.get("patches", [lock["patch"]]):
+            subprocess.run(
+                ["git", "-C", str(source), "apply", str(HERE / patch)], check=True
+            )
     verify_checkout(source, lock)
     if args.verify_runtime:
         if sys.platform != "win32" or sys.version_info[:3] != (3, 12, 12):

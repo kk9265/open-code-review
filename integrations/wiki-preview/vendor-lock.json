@@ -7,7 +7,8 @@
   "patch": "patches/0001-incremental-graph.patch",
   "artifacts": {
     "patches/0001-incremental-graph.patch": "bacc3ec63f99f848401d2fae4b9b29662bc9c338af8c63c56e196d7e45762493",
-    "requirements-windows-py312.lock": "9c823f92db2b057be006479f61d181c9fd2f67a877aec5a739cb6d2aa8618ff3"
+    "requirements-windows-py312.lock": "9c823f92db2b057be006479f61d181c9fd2f67a877aec5a739cb6d2aa8618ff3",
+    "patches/0002-code-catalog-plan.patch": "619b5ba72d632e9d220f25fa94914d1a435468007d71fc129580ff048bc50e1d"
   },
   "patched_files": {
     "backend/app/services/analysis_pipeline.py": "1e49dbecfb9b4d0f29341b27c360bae552fdcec631b38bfe36a0462d865a9951",
@@ -17,6 +18,12 @@
     "backend/app/services/incremental/planning.py": "9b585347be7fd59df978fd56047fb3722af051321c028b17e4d6a159439a6338",
     "backend/app/services/incremental/symbol_recovery.py": "16318bd5b48823a6e13b29b9ceed523ed4310678013c5659ddaedbdf0ba1e5cc",
     "backend/app/services/incremental/updater.py": "3ada49595bfc7f460b4a593ddaf9ad583b48ba15486f08d72781f393ed313f30",
-    "tests/backend/test_incremental_graph_fidelity.py": "4c04c6f109750f9926a0feaec7eb643feb04ccd8e30e653b2c3bde8ad6717ee5"
-  }
+    "tests/backend/test_incremental_graph_fidelity.py": "4c04c6f109750f9926a0feaec7eb643feb04ccd8e30e653b2c3bde8ad6717ee5",
+    "backend/app/services/wiki/catalog/code_plan.py": "0d800de8e160373c9762f9c12a2062b76f79c281c9926020022bda84379c4212",
+    "backend/app/services/wiki/agent_workflow.py": "d882ff1265e411dc12d86b80bd195ab31e9998706de3d0833f36a1bad588cbca"
+  },
+  "patches": [
+    "patches/0001-incremental-graph.patch",
+    "patches/0002-code-catalog-plan.patch"
+  ]
 }

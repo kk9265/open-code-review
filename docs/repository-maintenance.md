@@ -2,7 +2,7 @@
 
 统一入口为 `scripts/repositories/manage.py`，支持 Python 3.9+，适用于 Windows 和 Linux。
 脚本直接维护 `.ocr-data/workbench.db` 和 `.ocr-data/repositories/<仓库ID>.git`，
-不调用 Web 接口，不创建重复记录，也不分析代码。原 `repositories.ps1` 已被替换。
+不调用 Web 接口，不创建重复记录，也不分析代码。工具入口统一使用 Python。
 
 ## 使用方法
 
@@ -43,7 +43,7 @@ Go 负责 Git 同步和数据库一致性，Python 负责命令行入口、凭�
 
 Windows 优先使用进程环境变量 `OCR_GITEA_TOKEN`，否则通过 Windows DPAPI
 读取当前用户已保存的 `gitea-token.dpapi`，无需重新输入。
-首次配置仍可使用现有 `scripts/workbench/start-web.ps1 -Gitea`。
+首次配置仍可使用现有 `scripts/workbench/start-web.py --gitea`。
 Linux 使用进程环境变量 `OCR_GITEA_TOKEN`。
 令牌不进入命令参数或 Git URL。
 

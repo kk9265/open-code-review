@@ -83,7 +83,7 @@ class Store:
                 ).fetchone()
             ), False
 
-    def claim(self, lease_seconds=300):
+    def claim(self, lease_seconds=300, job_id=None):
         now = time.time()
         with self.transaction() as db:
             db.execute(
@@ -95,7 +95,8 @@ class Store:
                 "UPDATE jobs SET status='superseded' WHERE status='queued' AND EXISTS (SELECT 1 FROM jobs newer WHERE newer.repo_id=jobs.repo_id AND newer.branch=jobs.branch AND newer.id>jobs.id AND newer.status!='superseded')"
             )
             row = db.execute(
-                "SELECT * FROM jobs WHERE status='queued' ORDER BY id LIMIT 1"
+                "SELECT * FROM jobs WHERE status='queued' AND (? IS NULL OR id=?) ORDER BY id LIMIT 1",
+                (job_id, job_id),
             ).fetchone()
             if row is None:
                 return None

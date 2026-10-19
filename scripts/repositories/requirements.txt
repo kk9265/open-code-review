@@ -1,2 +1,2 @@
-# Optional dependency for manage.py --pause-workbench.
-psutil>=5.9,<8
+# Shared dependencies for the Python maintenance tools.
+-r ../requirements.txt

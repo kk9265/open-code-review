@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wiki Impact Preview</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/">W<span class="brand-dot"></span></a><span data-i18n="product"></span><span class="readonly" data-i18n="readonly"></span><a class="review-return" href="http://127.0.0.1:5484/reviews" data-i18n="backReview"></a></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">WIKI / IMPACT EXPLORER</p><h1 data-i18n="heading"></h1><p class="subtitle" data-i18n="subtitle"></p></div><span class="offline"><i></i><span data-i18n="offline"></span></span></div>
+    <div class="snapshot-toolbar"><label for="snapshot" data-i18n="snapshot"></label><select id="snapshot"></select><button id="refresh" type="button" data-i18n="refresh"></button></div>
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+    <section id="workspace" hidden>
+      <div class="version-card"><div><span class="meta-label" data-i18n="repository"></span><strong id="repository"></strong><span id="branch" class="branch"></span></div><div class="version-row"><span class="meta-label" data-i18n="comparison"></span><code id="baseline"></code><span class="arrow">→</span><code id="commit"></code><span id="scope"></span></div><details><summary data-i18n="graphStatus"></summary><div id="graphs" class="graph-grid"></div></details></div>
+      <div class="stats" id="stats"></div>
+      <div class="explorer">
+        <aside class="page-panel"><div class="panel-heading"><h2 data-i18n="pages"></h2><span id="page-count" class="count"></span></div><label for="search" class="sr-only" data-i18n="search"></label><input id="search" type="search" autocomplete="off"><div class="filters" id="filters" role="group"></div><div id="page-list" class="page-list"></div></aside>
+        <article class="detail-panel" id="page-detail" aria-live="polite"></article>
+      </div>
+      <details class="changes"><summary><span data-i18n="changedFiles"></span> <span id="change-count"></span></summary><div id="changes"></div></details>
+      <footer><span data-i18n="footer"></span><a id="raw-json" target="_blank" rel="noopener" data-i18n="rawJson"></a></footer>
+    </section>
+  </main>
+</body>
+</html>

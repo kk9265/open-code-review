@@ -1,0 +1,9 @@
+{{define "wiki"}}
+<link rel="stylesheet" href="/static/wiki.css">
+<script src="/static/wiki.js" defer></script>
+<section class="wiki-workspace" data-view="{{.Query}}">
+  <div class="wiki-heading"><h1>{{t "Wiki"}}</h1><span id="wiki-version">{{t "Loading Wiki metadata"}}</span></div>
+  <nav class="repository-tabs" aria-label="{{t "Wiki views"}}"><a href="/wiki?view=read" {{if eq .Query "read"}}aria-current="page"{{end}}>{{t "Wiki documentation"}}</a><a href="/wiki?view=plan" {{if eq .Query "plan"}}aria-current="page"{{end}}>{{t "Wiki planning"}}</a></nav>
+  <iframe id="wiki-frame" title="{{t "Wiki content"}}" src="{{if eq .Query "plan"}}/wiki/plan/planning{{else}}/wiki/read/{{end}}"></iframe>
+</section>
+{{end}}

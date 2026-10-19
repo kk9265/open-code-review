@@ -34,3 +34,10 @@ gitea-token.dpapi
 # Python
 __pycache__/
 *.py[cod]
+
+# Tests are local-only for this personal workspace.
+/.local-tests/
+*_test.go
+test_*.py
+*_test.py
+/internal/session/testing.go

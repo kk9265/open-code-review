@@ -18,7 +18,7 @@
 
 两份 provider 生成文件暂时保留，供生成器测试和仓库规则使用，extensions 目录已不包含可构建插件。
 
-Go 1.26.9 位于 .local-go/sdk/go，通过 scripts/toolchain/go.ps1 调用；系统 Go 保持 1.24.3。直接使用 Go 命令构建，不依赖 Make。详见 docs/local-go-windows.md。
+Go 1.26.9 位于 .local-go/sdk/go，通过 scripts/toolchain/go.py 调用；系统 Go 保持 1.24.3。直接使用 Go 命令构建，不依赖 Make。详见 docs/local-go-windows.md。
 
 新平台入口为 `cmd/ocr-web`，已实现 Gin 服务、SQLite 自动迁移、总览、仓库登记、审查草稿、设置页面，以及编辑、搜索、分页、归档和恢复。页面和 CSS 内嵌到二进制；默认监听 `127.0.0.1:5484`，数据保存在 `.ocr-data/workbench.db`。设置预填个人 Gitea 地址和账号，密钥仅识别进程环境中的配置状态。
 

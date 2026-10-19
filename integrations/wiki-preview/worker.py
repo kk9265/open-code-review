@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from git_data import catalog, commit, digest, git, repository, scope_paths
+from graph_data import freeze_graph
 from planner import preview
 from store import Store
 
@@ -23,12 +24,27 @@ def verify_lock():
 def runtime_fingerprint():
     implementation = {
         name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
-        for name in ["worker.py", "planner.py", "git_data.py"]
+        for name in [
+            "worker.py",
+            "planner.py",
+            "git_data.py",
+            "graph_data.py",
+            "graph_impact.py",
+        ]
     }
     return digest({"lock": verify_lock(), "implementation": implementation})
 
 
-def make_inputs(repo_path, branch, target=None, baseline=None, manifest=None, scope=()):
+def make_inputs(
+    repo_path,
+    branch,
+    target=None,
+    baseline=None,
+    manifest=None,
+    scope=(),
+    baseline_graph=None,
+    target_graph=None,
+):
     repo, repo_id = repository(repo_path)
     git(repo, "check-ref-format", "--branch", branch)
     branch_head = commit(repo, "refs/heads/" + branch)
@@ -37,9 +53,19 @@ def make_inputs(repo_path, branch, target=None, baseline=None, manifest=None, sc
     base = commit(repo, baseline) if baseline else None
     pages = catalog(manifest, base)
     paths = scope_paths(scope)
+    graphs = {
+        "baseline": freeze_graph(baseline_graph, repo, base),
+        "target": freeze_graph(target_graph, repo, head),
+    }
     runtime = runtime_fingerprint()
     fingerprint = digest(
-        {"runtime": runtime, "scope": paths, "catalog": pages, "baseline": base}
+        {
+            "runtime": runtime,
+            "scope": paths,
+            "catalog": pages,
+            "baseline": base,
+            "graphs": graphs,
+        }
     )
     return {
         "repo_path": str(repo),
@@ -49,6 +75,7 @@ def make_inputs(repo_path, branch, target=None, baseline=None, manifest=None, sc
         "baseline": base,
         "scope": paths,
         "catalog": pages,
+        "graphs": graphs,
         "config_fingerprint": fingerprint,
         "runtime_fingerprint": runtime,
     }
@@ -85,6 +112,8 @@ def main(argv=None):
     enqueue.add_argument("--baseline")
     enqueue.add_argument("--catalog", type=Path)
     enqueue.add_argument("--scope", action="append", default=[])
+    enqueue.add_argument("--baseline-graph", type=Path)
+    enqueue.add_argument("--target-graph", type=Path)
     commands.add_parser("work-once")
     commands.add_parser("jobs")
     commands.add_parser("snapshots")
@@ -103,6 +132,8 @@ def main(argv=None):
                 args.baseline,
                 args.catalog,
                 args.scope,
+                args.baseline_graph,
+                args.target_graph,
             )
             job, reused = store.enqueue(inputs)
             result = {
