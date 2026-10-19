@@ -88,35 +88,23 @@ func (s *Server) executeQueuedReview(ctx context.Context, j *ReviewJob) (string,
 	if s.reviewReadiness(Settings{ModelEndpoint: j.Endpoint, ModelName: j.Model}) != "" {
 		return "", errors.New("The saved model configuration is unavailable. Check Settings.")
 	}
+	key := os.Getenv("OCR_LLM_API_KEY")
+	// Loopback proxies authenticate upstream themselves; do not leak an unrelated provider key to them.
+	if j.ModelSource == "aimana" {
+		key = ""
+	}
+	client := llm.NewOpenAIClient(llm.ClientConfig{URL: j.Endpoint, APIKey: key, Model: j.Model, Timeout: 5 * time.Minute, RejectsSamplingParams: true})
 	if j.Input == "" {
-		path, err := s.cachePath(j.RepositoryID)
-		if err != nil {
+		if err := s.prepareChangePurpose(ctx, j, client); err != nil {
 			return "", err
 		}
 		var input strings.Builder
-		fmt.Fprintf(&input, "Ticket: %s\nRepository: %s\nBranch: %s\nSelected commits in order (only these changes belong to this review):\n", j.Ticket, j.RepositoryName, j.Branch)
-		for _, c := range j.Commits {
-			fmt.Fprintf(&input, "\nCommit %s\n%s\n", c.SHA, c.Message)
-			patch := &boundedPatch{limit: 1 << 20}
-			args := []string{"--git-dir=" + path, "diff-tree", "--root", "--no-commit-id", "-r", "-p", "--no-ext-diff", "--no-textconv", "--no-renames", "--submodule=short"}
-			parents := strings.Fields(c.Parents)
-			if len(parents) > 0 {
-				args = append(args, parents[0])
-			}
-			args = append(args, c.SHA, "--")
-			err = runManagedGitWithOutput(ctx, nil, patch, args...)
-			if patch.exceeded {
-				return "", errors.New("A selected patch exceeds the size limit. No partial input was sent.")
-			}
-			if err != nil {
-				return "", err
-			}
-			input.WriteString(patch.String())
-			if input.Len() > 2<<20 {
-				return "", errors.New("The ticket exceeds the input limit. Split its commits before retrying.")
-			}
+		fmt.Fprintf(&input, "Change purpose and expected behavior (source: %s; context to verify, not proof that the implementation is correct):\n%s\nEnd of change purpose.\n\nSelected submission descriptions (intent context only):\n", j.PurposeSource, j.ChangePurpose)
+		for _, commit := range j.Commits {
+			fmt.Fprintf(&input, "\nCommit %s\n%s\n", commit.SHA, commit.Message)
 		}
 		var previous string
+		var err error
 		if j.ContextJobID != 0 {
 			err = s.store.db.QueryRowContext(ctx, "SELECT result FROM review_jobs WHERE id=? AND group_id=?", j.ContextJobID, j.GroupID).Scan(&previous)
 		} else {
@@ -134,15 +122,9 @@ func (s *Server) executeQueuedReview(ctx context.Context, j *ReviewJob) (string,
 			input.WriteString(j.Feedback)
 		}
 		j.Input = input.String()
-		if _, err = s.store.db.ExecContext(ctx, "UPDATE review_jobs SET input=? WHERE id=? AND state='running'", j.Input, j.ID); err != nil {
+		if _, err := s.store.db.ExecContext(ctx, "UPDATE review_jobs SET input=? WHERE id=? AND state='running'", j.Input, j.ID); err != nil {
 			return "", err
 		}
 	}
-	key := os.Getenv("OCR_LLM_API_KEY")
-	// Loopback proxies authenticate upstream themselves; do not leak an unrelated provider key to them.
-	if j.ModelSource == "aimana" {
-		key = ""
-	}
-	client := llm.NewOpenAIClient(llm.ClientConfig{URL: j.Endpoint, APIKey: key, Model: j.Model, Timeout: 5 * time.Minute, RejectsSamplingParams: true})
 	return s.executeContextReview(ctx, j, client)
 }

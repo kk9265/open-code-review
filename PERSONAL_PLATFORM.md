@@ -42,7 +42,7 @@ Web handler 不直接调用 Cobra 命令。配置组装提取到可复用服务�
 
 ## 4. 下一步
 
-Gitea 联调、本地源同步、分支跟踪及按飞书单号归集的串行 AI 队列已经完成。当前跟踪 `zgame/master` 和 `zgame_china/dev/1.1.15.235.1`，用户已指定 AI Mana 的 `gpt-5.6-luna`。队列支持调整提交归属、固定轮次、失败重试和持久化结果。本版审查选中提交差异，完整工具代理、全库检索和多轮讨论仍待完善。详细状态见 HANDOFF.md 和 docs/review-queue.md。
+Gitea 联调、本地源同步、分支跟踪及按飞书单号归集的串行 AI 队列已经完成。本文保留阶段规划，审查流程及验证历史见 [审查队列说明](docs/review-queue.md)，启动与维护入口见 [脚本说明](scripts/README.md)。
 
 ## 5. 技术栈决定
 

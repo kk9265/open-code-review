@@ -14,8 +14,8 @@
   <nav aria-label="{{t "Main navigation"}}">
     <a href="/" {{if eq .Page "overview"}}aria-current="page"{{end}}><span class="nav-icon">◫</span>{{t "Overview"}}</a>
     <a href="/repositories" {{if or (eq .Page "repositories") (eq .Page "repository") (eq .Page "gitea")}}aria-current="page"{{end}}><span class="nav-icon">⌘</span>{{t "Repositories"}}</a>
-    <a href="/reviews" {{if or (eq .Page "results") (and (eq .Page "job") (ne .Job.State "queued") (ne .Job.State "running"))}}aria-current="page"{{end}}><span class="nav-icon">▤</span>{{t "Review results"}}</a>
-    <a href="/reviews/queue" {{if or (eq .Page "queue") (eq .Page "reviews") (eq .Page "review") (and (eq .Page "job") (or (eq .Job.State "queued") (eq .Job.State "running")))}}aria-current="page"{{end}}><span class="nav-icon">≡</span>{{t "Review queue"}}</a>
+    <a href="/reviews" {{if or (eq .Page "results") (eq .Page "result")}}aria-current="page"{{end}}><span class="nav-icon">▤</span>{{t "Review results"}}</a>
+    <a href="/reviews/queue" {{if or (eq .Page "queue") (eq .Page "reviews") (eq .Page "review") (eq .Page "job")}}aria-current="page"{{end}}><span class="nav-icon">≡</span>{{t "Review queue"}}</a>
     <a href="/settings" {{if eq .Page "settings"}}aria-current="page"{{end}}><span class="nav-icon">⚙</span>{{t "Settings"}}</a>
   </nav>
   <div class="sidebar-bottom"><span class="live-dot"></span><div>{{t "Personal workspace"}}<small>{{t "Stored on this computer"}}</small></div></div>
@@ -49,7 +49,7 @@
     {{if eq .Page "gitea"}}{{template "gitea" .}}{{end}}
     {{if eq .Page "results"}}{{template "results" .}}{{end}}
     {{if eq .Page "queue"}}{{template "queue" .}}{{end}}
-    {{if eq .Page "job"}}{{template "job" .}}{{end}}
+    {{if eq .Page "job"}}{{template "job-process" .}}{{end}}
 
     {{if eq .Page "repositories"}}
     {{template "repository-heading" .}}

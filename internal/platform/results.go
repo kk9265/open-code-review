@@ -16,18 +16,57 @@ import (
 	"github.com/yuin/goldmark/extension"
 )
 
-func renderReviewMarkdown(source string) (template.HTML, error) {
+func renderReviewMarkdown(source string, t func(string) string) (template.HTML, error) {
 	var output bytes.Buffer
 	// Keep the default renderer restrictions: model output cannot introduce raw HTML or unsafe links.
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
 	if err := md.Convert([]byte(source), &output); err != nil {
 		return "", err
 	}
-	return template.HTML(output.String()), nil
+	return template.HTML(reviewSeverityBadges(output.String(), t)), nil
+}
+
+func reviewChangeSummary(job ReviewJob) string {
+	purpose := strings.TrimSpace(job.ChangePurpose)
+	if purpose == "" {
+		purpose = strings.TrimSpace(job.GeneratedPurpose)
+	}
+	var lines []string
+	for _, line := range strings.Split(strings.ReplaceAll(purpose, "\r\n", "\n"), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		lines = append(lines, line)
+		if len(lines) == 3 {
+			break
+		}
+	}
+	if len(lines) == 0 {
+		seen := map[string]bool{}
+		for _, commit := range job.Commits {
+			title := commitTitle(commit.Message)
+			if title != "" && !seen[title] {
+				lines = append(lines, title)
+				seen[title] = true
+			}
+			if len(lines) == 3 {
+				break
+			}
+		}
+	}
+	if len(lines) == 0 {
+		return job.Title
+	}
+	summary := strings.Join(lines, "\n\n")
+	if runes := []rune(summary); len(runes) > 600 {
+		summary = string(runes[:600]) + "..."
+	}
+	return summary
 }
 
 func jobListColumns() string {
-	return strings.NewReplacer("j.input", "''", "j.result", "CASE WHEN length(j.result)>0 THEN 'saved' ELSE '' END").Replace(strings.Replace(jobColumns, "j.commits_json,", "'',", 1))
+	return strings.NewReplacer("j.purpose_input", "''", "j.generated_purpose", "''", "j.input", "''", "j.result", "CASE WHEN length(j.result)>0 THEN 'saved' ELSE '' END").Replace(strings.Replace(jobColumns, "j.commits_json,", "'',", 1))
 }
 
 type ResultGroup struct {
@@ -77,13 +116,31 @@ func (s *Server) resultsPage(c *gin.Context) {
 }
 
 func (s *Server) resultJob(ctx context.Context, id int64) (ReviewJob, error) {
+	return s.resultJobDetails(ctx, id)
+}
+
+func (s *Server) resultJobDetails(ctx context.Context, id int64) (ReviewJob, error) {
 	j, err := scanJob(s.store.db.QueryRowContext(ctx, `SELECT `+jobColumns+jobJoin+`WHERE j.id=?`, id))
 	if err != nil {
 		return j, err
 	}
-	j.RenderedResult, err = renderReviewMarkdown(j.Result)
+	j.Execution, err = s.reviewExecution(ctx, j.ID)
+	if err != nil {
+		return j, err
+	}
+	result := findingDescription(j.Result)
+	if result != "" && j.Execution != nil && (len(j.Execution.Native) > 0 || j.Execution.Direct != nil) {
+		result = s.nativeResult(nativeReviewRun{Direct: j.Execution.Direct, Partial: j.Execution.Phase == "partial", Commits: j.Execution.Native, Decisions: j.Execution.Decisions, Findings: j.Execution.Findings, Verdicts: j.Execution.Verdicts, VerificationState: j.Execution.VerificationState, VerificationError: j.Execution.VerificationError})
+	}
+	j.RenderedResult, err = renderReviewMarkdown(result, s.text)
 	if err == nil {
-		j.Execution, err = s.reviewExecution(ctx, j.ID)
+		j.ChangeSummary, err = renderReviewMarkdown(reviewChangeSummary(j), s.text)
+	}
+	if err == nil {
+		j.FindingCards, err = s.findingCards(j.Execution)
+	}
+	if err == nil {
+		err = s.loadFindingFeedback(ctx, &j)
 	}
 	if err == nil {
 		err = s.store.db.QueryRowContext(ctx, "SELECT count(*) FROM review_jobs WHERE group_id=? AND id<=?", j.GroupID, j.ID).Scan(&j.RoundNumber)

@@ -131,6 +131,8 @@ type ToolResultRecord struct {
 
 // SessionOptions holds optional metadata for a new session.
 type SessionOptions struct {
+	// StorageDir overrides the default session directory for embedded applications.
+	StorageDir  string
 	ReviewMode  string
 	DiffFrom    string
 	DiffTo      string

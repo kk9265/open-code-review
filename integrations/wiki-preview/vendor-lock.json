@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/PorunC/CodeWiki",
+  "commit": "7be8f702504cbd69aec6491a2e4e81f5311e0ba6",
+  "python": "3.12.12",
+  "platform": "Windows",
+  "patch": "patches/0001-incremental-graph.patch",
+  "artifacts": {
+    "patches/0001-incremental-graph.patch": "bacc3ec63f99f848401d2fae4b9b29662bc9c338af8c63c56e196d7e45762493",
+    "requirements-windows-py312.lock": "9c823f92db2b057be006479f61d181c9fd2f67a877aec5a739cb6d2aa8618ff3"
+  },
+  "patched_files": {
+    "backend/app/services/analysis_pipeline.py": "1e49dbecfb9b4d0f29341b27c360bae552fdcec631b38bfe36a0462d865a9951",
+    "backend/app/services/analyzer.py": "6e386934a9377ebdb03615d7358b35dcb91f0a21bb38eef325b2196b23de0319",
+    "backend/app/services/graph/builder.py": "45f056c3b2c10d1734c878f1b146d3b5a89ab4150b456c91d63e89de77b26f95",
+    "backend/app/services/graphrag/context.py": "27e30f3165774befae7cafb41d5d055b1dfa9b684f85feb00ea26b2c76abd7a4",
+    "backend/app/services/incremental/planning.py": "9b585347be7fd59df978fd56047fb3722af051321c028b17e4d6a159439a6338",
+    "backend/app/services/incremental/symbol_recovery.py": "16318bd5b48823a6e13b29b9ceed523ed4310678013c5659ddaedbdf0ba1e5cc",
+    "backend/app/services/incremental/updater.py": "3ada49595bfc7f460b4a593ddaf9ad583b48ba15486f08d72781f393ed313f30",
+    "tests/backend/test_incremental_graph_fidelity.py": "4c04c6f109750f9926a0feaec7eb643feb04ccd8e30e653b2c3bde8ad6717ee5"
+  }
+}

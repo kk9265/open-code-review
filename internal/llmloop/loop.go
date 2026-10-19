@@ -74,6 +74,8 @@ type Deps struct {
 	// unlimited, which is also what scan and every existing caller get by
 	// default.
 	MaxTokensBudget int64
+
+	ValidateToolCall func(context.Context, string, string, map[string]any) error
 }
 
 // requestCtx returns ctx carrying the identity of one logical LLM request, or
@@ -669,8 +671,7 @@ func (r *Runner) recordGraceRoundLimit(taskKey string, stop MainLoopStop, comple
 	r.RecordWarning(WarningReviewLimitReached, taskKey, stop.Reason()+"; "+outcome)
 }
 
-// graceRoundToolDefs returns the subset of tool definitions containing only
-// code_comment and task_done.
+// graceRoundToolDefs returns submission and completion tools for the final round.
 func graceRoundToolDefs(defs []llm.ToolDef) []llm.ToolDef {
 	out := make([]llm.ToolDef, 0, 2)
 	for _, d := range defs {
@@ -696,6 +697,11 @@ func (r *Runner) executeToolCall(ctx context.Context, taskKey string, call llm.T
 		args, err := parseToolArgs(call.Function.Arguments)
 		if err != nil {
 			return tool.Of(fmt.Sprintf("Error parsing tool arguments for %s: %v", t.Name(), err))
+		}
+		if r.deps.ValidateToolCall != nil {
+			if err := r.deps.ValidateToolCall(ctx, taskKey, call.Function.Name, args); err != nil {
+				return tool.Of("Error: " + err.Error())
+			}
 		}
 		rawState, hasState := args["state"]
 		if !hasState {
@@ -735,6 +741,12 @@ func (r *Runner) executeToolCall(ctx context.Context, taskKey string, call llm.T
 	}
 
 	startTime := time.Now()
+	if r.deps.ValidateToolCall != nil {
+		if err := r.deps.ValidateToolCall(ctx, taskKey, toolName, args); err != nil {
+			r.recordToolFailure(toolCallNumber, toolName, taskKey, err.Error(), rec, call.Function.Arguments, time.Since(callStarted))
+			return r.toolFailureResult(taskKey, toolName, "Error: "+err.Error())
+		}
+	}
 
 	if t == tool.CodeComment {
 		telemetry.PrintToolCallStarted(t.Name(), args)

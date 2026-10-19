@@ -1,0 +1,479 @@
+diff --git a/backend/app/services/analysis_pipeline.py b/backend/app/services/analysis_pipeline.py
+index bc42289..b687121 100644
+--- a/backend/app/services/analysis_pipeline.py
++++ b/backend/app/services/analysis_pipeline.py
+@@ -1,3 +1,4 @@
++# SPDX-License-Identifier: MIT
+ from dataclasses import dataclass
+ from pathlib import Path
+ from collections.abc import Callable, Mapping
+@@ -83,6 +84,13 @@ class AnalysisPipeline:
+         persist: bool = True,
+         progress_callback: Callable[[str, dict[str, object]], None] | None = None,
+     ) -> AnalysisPipelineResult:
++        if only_paths is not None:
++            reusable_paths = {symbol.file_path for symbol in reused_symbols or []}
++            # Legacy graphs cannot reconstruct the original AST without losing information.
++            only_paths = set(only_paths) | {
++                file.path for file in scan.files
++                if file.is_source and file.path not in reusable_paths
++            }
+         parse_total = sum(
+             1
+             for scanned_file in scan.files
+@@ -116,7 +124,12 @@ class AnalysisPipeline:
+             errors=len(parse_errors),
+         )
+         _emit_progress(progress_callback, "graph_start", symbols=len(parsed_symbols) + len(reused_symbols or []))
+-        graph = self.graph_builder.build(scan, [*(reused_symbols or []), *parsed_symbols])
++        file_order = {file.path: index for index, file in enumerate(scan.files)}
++        symbols = sorted(
++            [*(reused_symbols or []), *parsed_symbols],
++            key=lambda symbol: file_order[symbol.file_path],
++        )
++        graph = self.graph_builder.build(scan, symbols)
+         _emit_progress(progress_callback, "graph_done", nodes=len(graph.nodes), edges=len(graph.edges))
+         _emit_progress(progress_callback, "communities_start", nodes=len(graph.nodes), edges=len(graph.edges))
+         community_partitions = self.community_detector.detect(graph.nodes, graph.edges)
+diff --git a/backend/app/services/analyzer.py b/backend/app/services/analyzer.py
+index befa887..f9b535b 100644
+--- a/backend/app/services/analyzer.py
++++ b/backend/app/services/analyzer.py
+@@ -1,3 +1,4 @@
++# SPDX-License-Identifier: MIT
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ from typing import Any, Callable
+@@ -169,7 +170,16 @@ class AnalysisService:
+                     deleted=len(incremental_plan.deleted_files),
+                     unchanged=len(incremental_plan.unchanged_files),
+                 )
+-            if incremental_plan is not None and not incremental_plan.affected_files:
++            from backend.app.services.incremental.symbol_recovery import (
++                _requires_ast_refresh,
++                _symbols_from_existing_graph,
++            )
++
++            if (
++                incremental_plan is not None
++                and not incremental_plan.affected_files
++                and not _requires_ast_refresh(old_nodes)
++            ):
+                 existing_communities = self.store.list_graph_communities(repo_id)
+                 result = AnalysisResult(
+                     run_id=run.id,
+@@ -191,8 +201,6 @@ class AnalysisService:
+                 return result
+ 
+             if incremental_plan is not None:
+-                from backend.app.services.incremental.symbol_recovery import _symbols_from_existing_graph
+-
+                 changed_or_new = set(incremental_plan.changed_files + incremental_plan.new_files)
+                 reused_symbols = _symbols_from_existing_graph(
+                     old_nodes,
+@@ -206,7 +214,9 @@ class AnalysisService:
+                     progress_callback=progress_callback,
+                 )
+                 mode = "incremental"
+-                reused_file_count = len(incremental_plan.unchanged_files)
++                reused_file_count = len(set(incremental_plan.unchanged_files) - {
++                    symbol.file_path for symbol in pipeline_result.parsed_symbols
++                })
+             else:
+                 pipeline_result = self.pipeline.run(scan, progress_callback=progress_callback)
+                 mode = "full"
+@@ -343,14 +353,14 @@ def _known_hashes_from_nodes(nodes: list[CodeGraphNode]) -> dict[str, str]:
+     return {
+         node.file_path: node.hash
+         for node in nodes
+-        if node.type == "file" and node.file_path and node.hash
++        if node.type in {"file", "config"} and node.file_path and node.hash
+     }
+ 
+ 
+ def _known_file_metadata_from_nodes(nodes: list[CodeGraphNode]) -> dict[str, tuple[int | None, str | None]]:
+     metadata: dict[str, tuple[int | None, str | None]] = {}
+     for node in nodes:
+-        if node.type != "file" or not node.file_path:
++        if node.type not in {"file", "config"} or not node.file_path:
+             continue
+         size = node.metadata.get("size_bytes")
+         modified_at = node.metadata.get("modified_at")
+diff --git a/backend/app/services/graph/builder.py b/backend/app/services/graph/builder.py
+index 3329816..138f8e8 100644
+--- a/backend/app/services/graph/builder.py
++++ b/backend/app/services/graph/builder.py
+@@ -1,4 +1,5 @@
+-from dataclasses import dataclass, field, replace
++# SPDX-License-Identifier: MIT
++from dataclasses import asdict, dataclass, field, replace
+ 
+ from backend.app.services.ast_parser import AstSymbol
+ from backend.app.services.graph.call_resolver import (
+@@ -102,6 +103,15 @@ class GraphBuilder:
+         state = _GraphBuildState(repo_id=scan.repo.id)
+         self._build_file_nodes(scan, state)
+         self._build_symbol_nodes(symbols, state)
++        for path, file_symbols in state.symbols_by_file.items():
++            node = state.node_index[state.file_nodes[path]]
++            state.add_node(replace(
++                node,
++                metadata={
++                    **node.metadata,
++                    "ast_symbols": [asdict(symbol) for symbol in file_symbols],
++                },
++            ))
+         call_index = build_call_index(symbols, state.symbol_nodes)
+         import_scopes = import_scopes_for_files(
+             {
+diff --git a/backend/app/services/graphrag/context.py b/backend/app/services/graphrag/context.py
+index 60ef98c..8af7755 100644
+--- a/backend/app/services/graphrag/context.py
++++ b/backend/app/services/graphrag/context.py
+@@ -1,3 +1,4 @@
++# SPDX-License-Identifier: MIT
+ from backend.app.database import CodeChunkSearchHit, CodeWikiStore, GraphCommunityRecord
+ from backend.app.services.file_roles import is_wiki_noise_file
+ from backend.app.services.graph import CodeGraphEdge, CodeGraphNode
+@@ -281,7 +282,7 @@ def node_payload(
+         "hop": hop,
+         "confidence": node_confidence(node.metadata),
+         "provenance": node_provenance(node.metadata),
+-        "metadata": node.metadata,
++        "metadata": {key: value for key, value in node.metadata.items() if key != "ast_symbols"},
+     }
+ 
+ 
+diff --git a/backend/app/services/incremental/planning.py b/backend/app/services/incremental/planning.py
+index 4d66636..ef1e5cb 100644
+--- a/backend/app/services/incremental/planning.py
++++ b/backend/app/services/incremental/planning.py
+@@ -1,3 +1,4 @@
++# SPDX-License-Identifier: MIT
+ from backend.app.services.graph import CodeGraphEdge, CodeGraphNode
+ from backend.app.services.incremental.models import IncrementalUpdatePlan
+ from backend.app.services.repo_scanner import RepoScanResult
+@@ -16,7 +17,7 @@ def _plan_from_scan(
+     current_file_hashes = {
+         node.file_path: node.hash
+         for node in current_nodes
+-        if node.type == "file" and node.file_path
++        if node.type in {"file", "config"} and node.file_path
+     }
+     scanned_file_hashes = {scanned_file.path: scanned_file.sha256 for scanned_file in scan.files}
+ 
+diff --git a/backend/app/services/incremental/symbol_recovery.py b/backend/app/services/incremental/symbol_recovery.py
+index 7525a3d..68a4dd8 100644
+--- a/backend/app/services/incremental/symbol_recovery.py
++++ b/backend/app/services/incremental/symbol_recovery.py
+@@ -1,86 +1,33 @@
++# SPDX-License-Identifier: MIT
+ from backend.app.services.ast_parser import AstSymbol
+ from backend.app.services.graph import CodeGraphEdge, CodeGraphNode
+ 
+ 
++def _requires_ast_refresh(nodes: list[CodeGraphNode]) -> bool:
++    return any(
++        node.type in {"file", "config"}
++        and node.metadata.get("is_source")
++        and not node.metadata.get("ast_symbols")
++        for node in nodes
++    )
++
++
+ def _symbols_from_existing_graph(
+     nodes: list[CodeGraphNode],
+     edges: list[CodeGraphEdge],
+     file_paths: set[str],
+ ) -> list[AstSymbol]:
+-    node_by_id = {node.id: node for node in nodes}
+-    file_imports: dict[str, set[str]] = {}
+-    file_exports: dict[str, set[str]] = {}
+-    parent_symbol_by_node_id: dict[str, str] = {}
+-
+-    for edge in edges:
+-        source = node_by_id.get(edge.source_id)
+-        target = node_by_id.get(edge.target_id)
+-        if source is None or target is None:
+-            continue
+-        if edge.type == "imports" and source.type == "file" and source.file_path in file_paths:
+-            import_name = edge.metadata.get("import")
+-            if isinstance(import_name, str) and import_name:
+-                file_imports.setdefault(source.file_path, set()).add(import_name)
+-        elif edge.type == "exports" and source.type == "file" and source.file_path in file_paths:
+-            file_exports.setdefault(source.file_path, set()).add(target.name)
+-        elif (
+-            edge.type == "contains"
+-            and source.type != "file"
+-            and source.symbol_id
+-            and target.symbol_id
+-        ):
+-            parent_symbol_by_node_id[target.id] = source.symbol_id
+-
+     symbols: list[AstSymbol] = []
+     for node in nodes:
+-        if node.file_path not in file_paths:
++        if node.type not in {"file", "config"} or node.file_path not in file_paths:
+             continue
+-        if node.type == "file":
+-            symbols.append(
+-                AstSymbol(
+-                    id=node.symbol_id or f"file:{node.file_path}",
+-                    type="file",
+-                    name=node.name,
+-                    file_path=node.file_path,
+-                    language=node.language or "",
+-                    start_line=node.start_line or 1,
+-                    end_line=node.end_line or 1,
+-                    imports=sorted(file_imports.get(node.file_path, set())),
+-                    exports=sorted(file_exports.get(node.file_path, set())),
+-                    hash=node.hash,
+-                )
+-            )
++        snapshots = node.metadata.get("ast_symbols")
++        if not isinstance(snapshots, list) or not snapshots:
+             continue
+-        if node.type not in {"class", "function", "method", "interface", "schema", "endpoint"}:
++        try:
++            recovered = [AstSymbol(**snapshot) for snapshot in snapshots]
++        except (TypeError, ValueError):
+             continue
+-        symbols.append(
+-            AstSymbol(
+-                id=node.symbol_id or f"{node.file_path}::{node.name}",
+-                type=node.type,
+-                name=node.name,
+-                file_path=node.file_path,
+-                language=node.language or "",
+-                start_line=node.start_line or 1,
+-                end_line=node.end_line or node.start_line or 1,
+-                parent_id=parent_symbol_by_node_id.get(node.id),
+-                signature=_string_or_none(node.metadata.get("signature")),
+-                docstring=_string_or_none(node.metadata.get("docstring")),
+-                exports=_string_list(node.metadata.get("exports")),
+-                bases=_string_list(node.metadata.get("bases")),
+-                decorators=_string_list(node.metadata.get("decorators")),
+-                calls=_string_list(node.metadata.get("calls")),
+-                hash=node.hash,
+-                metadata=dict(node.metadata),
+-            )
+-        )
++        if all(symbol.file_path == node.file_path for symbol in recovered):
++            symbols.extend(recovered)
+     return symbols
+-
+-
+-def _string_or_none(value: object) -> str | None:
+-    return value if isinstance(value, str) else None
+-
+-
+-def _string_list(value: object) -> list[str]:
+-    if not isinstance(value, list):
+-        return []
+-    return [str(item) for item in value if item is not None]
+diff --git a/backend/app/services/incremental/updater.py b/backend/app/services/incremental/updater.py
+index 7615ce5..45ef875 100644
+--- a/backend/app/services/incremental/updater.py
++++ b/backend/app/services/incremental/updater.py
+@@ -1,3 +1,4 @@
++# SPDX-License-Identifier: MIT
+ from pathlib import Path
+ 
+ from backend.app.database import CodeWikiStore
+@@ -14,7 +15,10 @@ from backend.app.services.graph import CodeGraphNode, GraphBuilder
+ from backend.app.services.graphrag import GraphRAGRetriever
+ from backend.app.services.incremental.models import IncrementalUpdatePlan, IncrementalUpdateResult
+ from backend.app.services.incremental.planning import _affected_graph_refs, _plan_from_scan
+-from backend.app.services.incremental.symbol_recovery import _symbols_from_existing_graph
++from backend.app.services.incremental.symbol_recovery import (
++    _requires_ast_refresh,
++    _symbols_from_existing_graph,
++)
+ from backend.app.services.incremental.wiki_regeneration import (
+     regenerate_stale_wiki_pages,
+     skipped_wiki_regeneration,
+@@ -68,7 +72,7 @@ class IncrementalUpdater:
+         run = self.store.create_analysis_run(repo_id)
+ 
+         try:
+-            if not plan.affected_files:
++            if not plan.affected_files and not _requires_ast_refresh(old_nodes):
+                 chunk_count = len(self.store.list_code_chunks(repo_id))
+                 existing_communities = self.store.list_graph_communities(repo_id)
+                 result = IncrementalUpdateResult(
+@@ -114,7 +118,9 @@ class IncrementalUpdater:
+                 plan=plan,
+                 scanned_count=scan.scanned_count,
+                 parsed_file_count=pipeline_result.parsed_file_count,
+-                reused_file_count=len(plan.unchanged_files),
++                reused_file_count=len(set(plan.unchanged_files) - {
++                    symbol.file_path for symbol in pipeline_result.parsed_symbols
++                }),
+                 node_count=len(pipeline_result.graph.nodes),
+                 edge_count=len(pipeline_result.graph.edges),
+                 community_count=len(pipeline_result.communities),
+diff --git a/tests/backend/test_incremental_graph_fidelity.py b/tests/backend/test_incremental_graph_fidelity.py
+new file mode 100644
+--- /dev/null
++++ b/tests/backend/test_incremental_graph_fidelity.py
+@@ -0,0 +1,160 @@
++# SPDX-License-Identifier: MIT
++from dataclasses import asdict, replace
++from pathlib import Path
++
++import pytest
++
++from backend.app.database import SQLiteStore
++from backend.app.services.analyzer import AnalysisService
++from backend.app.services.graph import CodeGraphNode
++from backend.app.services.graphrag.context import node_payload
++from backend.app.services.incremental import IncrementalUpdater
++from backend.app.services.repo_scanner import RepoScanner
++
++
++def test_parser_cache_is_not_included_in_model_context() -> None:
++    node = CodeGraphNode(
++        id="file",
++        repo_id="repo",
++        type="file",
++        name="service.py",
++        metadata={"ast_symbols": [{"calls": ["secret_internal_cache"]}], "is_source": True},
++    )
++    payload = node_payload(node, 1.0, [], hop=0)
++    assert payload["metadata"] == {"is_source": True}
++    assert "ast_symbols" in node.metadata
++
++
++def assert_matches_full(store: SQLiteStore, repo_id: str, path: Path) -> None:
++    actual = store.get_graph(repo_id)
++    full = AnalysisService(store=store).build_graph_for_path(str(path))
++    for incremental, expected in zip(actual, [full.nodes, full.edges], strict=True):
++        assert {item.id: asdict(item) for item in incremental} == {
++            item.id: asdict(item) for item in expected
++        }
++
++
++@pytest.mark.parametrize(
++    ("name", "source"),
++    [
++        (
++            "service.go",
++            """package service
++import "os"
++type Config struct { Value string }
++type Reader interface { Read() string }
++type Client struct { Config Config }
++func (c *Client) Read() string { return os.Getenv("VALUE") }
++func New(c Config) *Client { return &Client{Config: c} }
++""",
++        ),
++        (
++            "service.py",
++            """import os
++class Config:
++    pass
++class Client(Config):
++    def read(self):
++        return os.getenv("VALUE")
++def make() -> Client:
++    return Client()
++""",
++        ),
++        (
++            "service.ts",
++            """import { Config } from './config';
++interface Reader { read(): string; }
++class Client implements Reader {
++    read(): string { return Config.value; }
++}
++export function make(): Reader { return new Client(); }
++""",
++        ),
++    ],
++)
++def test_incremental_graph_matches_full(
++    tmp_path: Path,
++    name: str,
++    source: str,
++) -> None:
++    path = tmp_path / "repo"
++    path.mkdir()
++    (path / name).write_text(source, encoding="utf-8")
++    (path / "config.ts").write_text(
++        'export class Config { static value = "ok"; }', encoding="utf-8"
++    )
++    (path / "change.py").write_text("def answer():\n    return 1\n", encoding="utf-8")
++    (path / "go.mod").write_text("module example\n", encoding="utf-8")
++    store = SQLiteStore(tmp_path / "graph.sqlite3")
++    repo = store.upsert_repo(RepoScanner().describe(str(path)))
++    AnalysisService(store=store).analyze(repo.id)
++
++    updater = IncrementalUpdater(store=store)
++    for _ in range(2):
++        result = updater.update(repo.id, refresh_chunks=False)
++        assert result.plan.affected_files == []
++        assert result.parsed_file_count == 0
++        assert_matches_full(store, repo.id, path)
++
++    (path / "change.py").write_text("def answer():\n    return 2\n", encoding="utf-8")
++    result = updater.update(repo.id, refresh_chunks=False)
++    assert result.parsed_file_count == 1
++    assert result.plan.changed_files == ["change.py"]
++    assert_matches_full(store, repo.id, path)
++
++    (path / "go.mod").write_text("module changed\n", encoding="utf-8")
++    result = updater.update(repo.id, refresh_chunks=False)
++    assert result.plan.changed_files == ["go.mod"]
++    assert result.parsed_file_count == 0
++    assert_matches_full(store, repo.id, path)
++
++    (path / "config.ts").unlink()
++    (path / "new.py").write_text("def added():\n    return 3\n", encoding="utf-8")
++    result = updater.update(repo.id, refresh_chunks=False)
++    assert result.plan.deleted_files == ["config.ts"]
++    assert result.plan.new_files == ["new.py"]
++    assert result.parsed_file_count == 1
++    assert_matches_full(store, repo.id, path)
++
++
++@pytest.mark.parametrize("changed", [False, True])
++@pytest.mark.parametrize("entrypoint", ["analyze", "update"])
++def test_legacy_graph_reparses_instead_of_losing_relationships(
++    tmp_path: Path,
++    changed: bool,
++    entrypoint: str,
++) -> None:
++    path = tmp_path / "repo"
++    path.mkdir()
++    (path / "service.py").write_text(
++        "class Config:\n    pass\ndef make() -> Config:\n    return Config()\n", encoding="utf-8"
++    )
++    (path / "change.py").write_text("def answer():\n    return 1\n", encoding="utf-8")
++    store = SQLiteStore(tmp_path / "graph.sqlite3")
++    repo = store.upsert_repo(RepoScanner().describe(str(path)))
++    AnalysisService(store=store).analyze(repo.id)
++    nodes, edges = store.get_graph(repo.id)
++    nodes = [
++        replace(node, metadata={k: v for k, v in node.metadata.items() if k != "ast_symbols"})
++        for node in nodes
++    ]
++    store.replace_graph(repo.id, nodes=nodes, edges=[e for e in edges if e.type != "references"])
++    if changed:
++        (path / "change.py").write_text("def answer():\n    return 2\n", encoding="utf-8")
++    service = (
++        AnalysisService(store=store) if entrypoint == "analyze" else IncrementalUpdater(store=store)
++    )
++    result = (
++        service.analyze(repo.id)
++        if entrypoint == "analyze"
++        else service.update(repo.id, refresh_chunks=False)
++    )
++    assert result.parsed_file_count == 2
++    assert result.reused_file_count == 0
++    assert_matches_full(store, repo.id, path)
++    result = (
++        service.analyze(repo.id)
++        if entrypoint == "analyze"
++        else service.update(repo.id, refresh_chunks=False)
++    )
++    assert result.parsed_file_count == 0

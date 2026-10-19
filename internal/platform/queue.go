@@ -25,12 +25,21 @@ type TicketCommit struct {
 }
 
 type ReviewJob struct {
+	snapshot                                                                 *ticketSnapshot
 	RoundNumber                                                              int
 	BudgetEnabled                                                            bool
 	Execution                                                                *ReviewExecution
 	FeedbackDraft, Feedback                                                  string
 	FeedbackVersion, ContextJobID                                            int64
+	ChangePurpose, PurposeDraft                                              string
+	PurposeVersion                                                           int64
+	PurposeInput, GeneratedPurpose, PurposeState, PurposeSource              string
+	PurposeRequests, PurposeTokens                                           int64
 	RenderedResult                                                           template.HTML
+	FindingCards                                                             []FindingCard
+	ChangeSummary                                                            template.HTML
+	ComparisonJobID                                                          int64
+	PreviousFindings                                                         []FindingCard
 	Title                                                                    string
 	ModelSource                                                              string
 	ID, GroupID, RepositoryID                                                int64
@@ -151,12 +160,12 @@ func (s *Server) collectTickets(ctx context.Context) error {
 }
 
 const jobColumns = `j.id,j.group_id,g.repository_id,j.state,g.ticket,g.branch,p.name,j.frozen,j.commits_json,j.input,j.result,j.error,j.endpoint,j.model,j.language,j.budget,j.created_at,j.started_at,j.finished_at,j.model_source,
-COALESCE(CASE WHEN json_valid(j.commits_json) THEN json_extract(j.commits_json,'$[0].Message') END,(SELECT message FROM ticket_commits WHERE group_id=j.group_id ORDER BY id LIMIT 1),''),j.feedback_draft,j.feedback_version,j.feedback,COALESCE(j.context_job_id,0),j.budget_enabled`
+COALESCE(CASE WHEN json_valid(j.commits_json) THEN json_extract(j.commits_json,'$[0].Message') END,(SELECT message FROM ticket_commits WHERE group_id=j.group_id ORDER BY id LIMIT 1),''),j.feedback_draft,j.feedback_version,j.feedback,COALESCE(j.context_job_id,0),j.budget_enabled,j.change_purpose,g.change_purpose,g.purpose_version,j.purpose_input,j.generated_purpose,j.purpose_state,j.purpose_source,j.purpose_requests,j.purpose_tokens`
 const jobJoin = ` FROM review_jobs j JOIN ticket_groups g ON g.id=j.group_id JOIN repositories p ON p.id=g.repository_id `
 
 func scanJob(row interface{ Scan(...any) error }) (ReviewJob, error) {
 	var j ReviewJob
-	err := row.Scan(&j.ID, &j.GroupID, &j.RepositoryID, &j.State, &j.Ticket, &j.Branch, &j.RepositoryName, &j.Frozen, &j.CommitsJSON, &j.Input, &j.Result, &j.Error, &j.Endpoint, &j.Model, &j.Language, &j.Budget, &j.CreatedAt, &j.StartedAt, &j.FinishedAt, &j.ModelSource, &j.Title, &j.FeedbackDraft, &j.FeedbackVersion, &j.Feedback, &j.ContextJobID, &j.BudgetEnabled)
+	err := row.Scan(&j.ID, &j.GroupID, &j.RepositoryID, &j.State, &j.Ticket, &j.Branch, &j.RepositoryName, &j.Frozen, &j.CommitsJSON, &j.Input, &j.Result, &j.Error, &j.Endpoint, &j.Model, &j.Language, &j.Budget, &j.CreatedAt, &j.StartedAt, &j.FinishedAt, &j.ModelSource, &j.Title, &j.FeedbackDraft, &j.FeedbackVersion, &j.Feedback, &j.ContextJobID, &j.BudgetEnabled, &j.ChangePurpose, &j.PurposeDraft, &j.PurposeVersion, &j.PurposeInput, &j.GeneratedPurpose, &j.PurposeState, &j.PurposeSource, &j.PurposeRequests, &j.PurposeTokens)
 	j.Title = commitTitle(j.Title)
 	if err == nil && j.CommitsJSON != "" {
 		err = json.Unmarshal([]byte(j.CommitsJSON), &j.Commits)
@@ -177,7 +186,7 @@ func (s *Server) queuePage(c *gin.Context) {
 		return
 	}
 	data.QueueStatus = s.reviewReadiness(settings)
-	rows, err := s.store.db.QueryContext(ctx, `SELECT `+jobListColumns()+jobJoin+` WHERE j.state IN ('queued','running') ORDER BY j.id LIMIT 100`)
+	rows, err := s.store.db.QueryContext(ctx, `SELECT `+jobListColumns()+jobJoin+` ORDER BY CASE WHEN j.state IN ('queued','running') THEN 0 ELSE 1 END,j.id DESC LIMIT 100`)
 	if err != nil {
 		s.fail(c, err)
 		return
@@ -234,7 +243,7 @@ func (s *Server) jobPage(c *gin.Context) {
 	}
 
 	data := page{Page: "job", Title: s.text(j.Title), Job: j}
-	if j.State != "queued" && j.State != "running" {
+	if !strings.HasPrefix(c.Request.URL.Path, "/reviews/queue/runs/") && j.State != "queued" && j.State != "running" {
 		data.Page = "results"
 		if err := s.resultTree(c, &data, 0); err != nil {
 			s.fail(c, err)
@@ -337,14 +346,19 @@ func (s *Server) jobAction(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	switch c.PostForm("job_action") {
+	case "like_finding", "comment_finding", "assess_finding", "edit_finding_comment", "delete_finding_comment":
+		s.findingFeedback(c, id)
+		return
+	}
 	if c.PostForm("job_action") == "feedback" || c.PostForm("job_action") == "rerun" {
 		s.reviewFeedback(c, id)
 		return
 	}
 	if c.PostForm("job_action") == "retry" {
 		// A retry is a separate run with exactly the same frozen input; the failed record remains intact.
-		result, e := s.store.db.ExecContext(ctx, `INSERT INTO review_jobs(group_id,state,frozen,commits_json,input,endpoint,model,language,budget,retry_of,created_at,model_source,feedback,context_job_id,budget_enabled)
-	   SELECT group_id,'queued',1,commits_json,input,endpoint,model,language,budget,id,?,model_source,feedback,context_job_id,budget_enabled FROM review_jobs WHERE id=? AND state IN ('failed','interrupted') AND NOT EXISTS(SELECT 1 FROM review_jobs WHERE retry_of=? AND state IN ('queued','running'))`, now(), id, id)
+		result, e := s.store.db.ExecContext(ctx, `INSERT INTO review_jobs(group_id,state,frozen,commits_json,input,endpoint,model,language,budget,retry_of,created_at,model_source,feedback,context_job_id,budget_enabled,change_purpose,purpose_input,generated_purpose,purpose_state,purpose_source)
+	   SELECT group_id,'queued',1,commits_json,input,endpoint,model,language,budget,id,?,model_source,feedback,context_job_id,budget_enabled,change_purpose,purpose_input,generated_purpose,purpose_state,purpose_source FROM review_jobs WHERE id=? AND state IN ('failed','interrupted') AND NOT EXISTS(SELECT 1 FROM review_jobs WHERE retry_of=? AND state IN ('queued','running'))`, now(), id, id)
 		err = changed(result, e)
 	} else if c.PostForm("job_action") == "cancel" {
 		result, e := s.store.db.ExecContext(ctx, `UPDATE review_jobs SET state='cancelled',finished_at=? WHERE id=? AND state='queued'`, now(), id)
@@ -398,8 +412,9 @@ func (s *Server) claimReview(ctx context.Context, settings Settings) (*ReviewJob
 		j.Endpoint, j.Model, j.Language, j.Budget = settings.ModelEndpoint, settings.ModelName, settings.Language, settings.TokenBudget
 		j.ModelSource = settings.ModelSource
 		j.BudgetEnabled = settings.TokenBudgetEnabled
+		j.ChangePurpose = j.PurposeDraft
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE review_jobs SET state='running',frozen=1,commits_json=?,endpoint=?,model=?,language=?,budget=?,started_at=?,model_source=?,budget_enabled=? WHERE id=?`, j.CommitsJSON, j.Endpoint, j.Model, j.Language, j.Budget, now(), j.ModelSource, j.BudgetEnabled, j.ID)
+	_, err = tx.ExecContext(ctx, `UPDATE review_jobs SET state='running',frozen=1,commits_json=?,endpoint=?,model=?,language=?,budget=?,started_at=?,model_source=?,budget_enabled=?,change_purpose=? WHERE id=?`, j.CommitsJSON, j.Endpoint, j.Model, j.Language, j.Budget, now(), j.ModelSource, j.BudgetEnabled, j.ChangePurpose, j.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +446,7 @@ func (s *Server) RunReviewQueue(ctx context.Context) {
 				s.log.Error("claim review", "error", err)
 			}
 			if j != nil {
-				runCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+				runCtx, cancel := context.WithTimeout(ctx, ticketReviewTimeout)
 				result, runErr := s.executeQueuedReview(runCtx, j)
 				cancel()
 				state, message := "completed", ""

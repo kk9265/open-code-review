@@ -149,6 +149,9 @@ type Args struct {
 	// manifest existed. Nil means resolve normally, which is every non-resume run.
 	SealedInput *diff.InputResolution
 
+	// ValidateToolCall lets embedded callers enforce evidence contracts before collection or completion.
+	ValidateToolCall func(context.Context, string, string, map[string]any) error
+
 	// MaxTokensBudget caps the aggregate token usage (input+output) across the
 	// whole run; dispatch stops once the running total + a per-group look-ahead
 	// would exceed it. 0 = unlimited. Mirrors scan.Args.MaxTokensBudget.
@@ -252,8 +255,9 @@ func New(args Args) *Agent {
 		AllDiffs:          a.allDiffs,
 		// Non-nil only here: the same Runner serves scan, whose requests must
 		// stay out of the retry report. See newRequestMeta.
-		NewRequestMeta:  a.newRequestMeta,
-		MaxTokensBudget: args.MaxTokensBudget,
+		NewRequestMeta:   a.newRequestMeta,
+		MaxTokensBudget:  args.MaxTokensBudget,
+		ValidateToolCall: args.ValidateToolCall,
 	})
 	return a
 }

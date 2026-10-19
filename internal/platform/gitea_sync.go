@@ -171,6 +171,10 @@ func runManagedGit(ctx context.Context, extraEnv []string, args ...string) error
 }
 
 func runManagedGitWithOutput(ctx context.Context, extraEnv []string, output io.Writer, args ...string) error {
+	return runManagedGitWithInputOutput(ctx, extraEnv, nil, output, args...)
+}
+
+func runManagedGitWithInputOutput(ctx context.Context, extraEnv []string, input io.Reader, output io.Writer, args ...string) error {
 	options := []string{"-c", "credential.helper=", "-c", "core.hooksPath=" + os.DevNull, "-c", "http.followRedirects=false", "-c", "http.lowSpeedLimit=1", "-c", "http.lowSpeedTime=60", "-c", "protocol.allow=never", "-c", "protocol.http.allow=always", "-c", "protocol.https.allow=always", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}
 	cmd := exec.CommandContext(ctx, "git", append(options, args...)...)
 	for _, entry := range os.Environ() {
@@ -183,6 +187,7 @@ func runManagedGitWithOutput(ctx context.Context, extraEnv []string, output io.W
 	}
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=Never", "GIT_LFS_SKIP_SMUDGE=1")
 	cmd.Env = append(cmd.Env, extraEnv...)
+	cmd.Stdin = input
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	if output != nil {
 		cmd.Stdout, cmd.Stderr = output, output

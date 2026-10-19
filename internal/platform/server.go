@@ -150,6 +150,7 @@ func (s *Server) Handler() http.Handler {
 	r.GET("/reviews/drafts", s.reviews)
 	r.GET("/reviews/new", s.newReview)
 	r.GET("/reviews/queue", s.queuePage)
+	r.GET("/reviews/queue/runs/:id", s.jobPage)
 	r.POST("/reviews/queue", s.queueControl)
 	r.GET("/reviews/runs/:id", s.jobPage)
 	r.POST("/reviews/runs/:id", s.jobAction)
@@ -180,7 +181,7 @@ func (s *Server) protect() gin.HandlerFunc {
 		}
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
-		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("Referrer-Policy", "same-origin")
 		c.Header("Cache-Control", "no-store")
 		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
@@ -213,6 +214,9 @@ func (s *Server) render(c *gin.Context, status int, data page) {
 	data.Error = s.text(data.Error)
 	data.DataDir = s.config.DataDir
 	data.Saved = c.Query("saved") == "1" && data.Error == ""
+	for i := range data.Job.FindingCards {
+		data.Job.FindingCards[i].Saved = data.Saved && c.Query("saved_finding") == data.Job.FindingCards[i].Key
+	}
 	var body bytes.Buffer
 	if err := s.tmpl.ExecuteTemplate(&body, "app.html", data); err != nil {
 		s.log.Error("render page", "error", err)

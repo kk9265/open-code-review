@@ -52,6 +52,12 @@ type CodeCommentProvider struct {
 	Collector *CommentCollector
 }
 
+// Only an in-process source validator can stamp a location; JSON tool arguments cannot forge this type.
+type ValidatedCommentLocation struct {
+	StartLine int
+	EndLine   int
+}
+
 func (p *CodeCommentProvider) Tool() Tool { return CodeComment }
 
 func (p *CodeCommentProvider) Execute(_ context.Context, args map[string]any) (string, error) {
@@ -135,6 +141,9 @@ func parseCommentsInner(args map[string]any, defaultPath string) ([]model.LlmCom
 		}
 		if existing, ok := obj["existing_code"].(string); ok {
 			cm.ExistingCode = existing
+		}
+		if location, ok := obj["resolved_location"].(ValidatedCommentLocation); ok {
+			cm.StartLine, cm.EndLine = location.StartLine, location.EndLine
 		}
 		if thinking, ok := obj["thinking"].(string); ok {
 			cm.Thinking = thinking

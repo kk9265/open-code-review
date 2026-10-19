@@ -24,6 +24,7 @@ var sessionSubDir = "sessions"
 // $HOME/.opencodereview/sessions/<encoded-repo-path>/<session-id>.jsonl.
 // It is safe for concurrent use by multiple goroutines.
 type jsonlWriter struct {
+	storageDir  string
 	mu          sync.Mutex
 	sessionID   string
 	repoDir     string
@@ -44,6 +45,7 @@ type jsonlWriter struct {
 // newJSONLWriter creates and opens a new JSONL writer for the given session.
 func newJSONLWriter(sessionID, repoDir, gitBranch, model string, opts SessionOptions) (*jsonlWriter, error) {
 	jw := &jsonlWriter{
+		storageDir:  opts.StorageDir,
 		sessionID:   sessionID,
 		repoDir:     repoDir,
 		gitBranch:   gitBranch,
@@ -103,12 +105,14 @@ func encodeRepoPath(p string) string {
 }
 
 func (jw *jsonlWriter) open() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve home dir: %w", err)
+	sessionDir := jw.storageDir
+	if sessionDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolve home dir: %w", err)
+		}
+		sessionDir = filepath.Join(home, ".opencodereview", sessionSubDir, encodeRepoPath(jw.repoDir))
 	}
-
-	sessionDir := filepath.Join(home, ".opencodereview", sessionSubDir, encodeRepoPath(jw.repoDir))
 	if err := os.MkdirAll(sessionDir, 0700); err != nil {
 		return fmt.Errorf("create session dir: %w", err)
 	}
