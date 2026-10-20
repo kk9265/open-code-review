@@ -1,9 +1,10 @@
 {{define "wiki"}}
 <link rel="stylesheet" href="/static/wiki.css">
 <script src="/static/wiki.js" defer></script>
-<section class="wiki-workspace" data-view="{{.Query}}">
+<section class="wiki-workspace" data-view="{{.Query}}" data-prefix="{{.WikiPrefix}}" data-scope="{{.WikiScope}}">
   <div class="wiki-heading"><h1>{{t "Wiki"}}</h1><span id="wiki-version">{{t "Loading Wiki metadata"}}</span></div>
-  <nav class="repository-tabs" aria-label="{{t "Wiki views"}}"><a href="/wiki?view=read" {{if eq .Query "read"}}aria-current="page"{{end}}>{{t "Wiki documentation"}}</a><a href="/wiki?view=plan" {{if eq .Query "plan"}}aria-current="page"{{end}}>{{t "Wiki planning"}}</a></nav>
-  <iframe id="wiki-frame" title="{{t "Wiki content"}}" src="{{if eq .Query "plan"}}/wiki/plan/planning{{else}}/wiki/read/{{end}}"></iframe>
+  <nav class="repository-tabs" aria-label="{{t "Wiki service"}}"><a href="/wiki?scope=LoginServer&amp;view={{.Query}}" {{if eq .WikiScope "LoginServer"}}aria-current="page"{{end}}>LoginServer</a><a href="/wiki?scope=AccountServer&amp;view={{.Query}}" {{if eq .WikiScope "AccountServer"}}aria-current="page"{{end}}>AccountServer</a></nav>
+  <nav class="repository-tabs" aria-label="{{t "Wiki views"}}"><a href="/wiki?view=read&amp;scope={{.WikiScope}}" {{if eq .Query "read"}}aria-current="page"{{end}}>{{t "Wiki documentation"}}</a><a href="/wiki?view=plan&amp;scope={{.WikiScope}}" {{if eq .Query "plan"}}aria-current="page"{{end}}>{{t "Wiki planning"}}</a></nav>
+  <iframe id="wiki-frame" title="{{t "Wiki content"}}" src="{{.WikiPrefix}}/{{if eq .Query "plan"}}plan/planning{{else}}read/{{end}}"></iframe>
 </section>
 {{end}}

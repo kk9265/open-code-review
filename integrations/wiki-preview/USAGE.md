@@ -1,33 +1,90 @@
-# Wiki 预览模块
+# Wiki 函数说明模块
 
-## Review 统一 Wiki 入口
+## 正文生成与试点边界
 
-工作台入口为 <http://127.0.0.1:5484/wiki>，同一页签下切换「Wiki 正文／目录规划」。浏览器仅访问 Review 同源的 `/wiki/read/`、`/wiki/plan/` 只读代理；内部正文服务 5491 与规划服务 5490 不再需要作为独立入口打开。代理不转发工作台 Cookie/Authorization，不提供生成或写入路由；内部服务停止时显示不可用提示，不会触发模型或自动生成。
+**助手不得自行撰写、翻译、补写或改写 Wiki 正文。正文必须由 Wiki 模块调用模型生成。** 用户已明确授权助手维护模块、执行 LoginServer / LoginWhiteList 试点命令，并围绕该试点补充跨类调用关系与业务过程。其他类仅作为这条业务链的源码上下文，不单独生成页面；用户确认可读性前，不扩展其他业务。
 
-当前正文为 zgame 冻结版本的 LoginServer：17 个文件页、88 个职责子页、9 个复杂功能页。左侧按文件挂接职责子页，或切换复杂功能目录；支持搜索、面包屑和当前页面标记。正文页面、目录选择、搜索和展开状态按仓库/提交保存在浏览器；规划快照、页面选择及搜索分别保存，切换视图后可恢复。源码引用在同页阅读区域定位行范围，并可返回原正文；Mermaid 和源码依据折叠继续生效。
+**最新授权：用户已确认试点可读性，并允许解开执行入口、补充 LoginServer 其余模块。归组、需要补读的源码选择、正文和正文修正都必须由 Wiki 模块调用 AI Mana 的 DeepSeek（当前 `deepseek-flash`）完成。助手只维护执行机制并运行命令，不能代替 DS 写 Wiki。AccountServer 仍不在本轮范围。** 下文旧试点限制不应阻止这次已明确授权的 LoginServer 扩展，也不构成其他服务的授权。
 
-只读正文服务已从临时运行脚本整理为可维护源码：
-
-```powershell
-python integrations/wiki-preview/generated_viewer.py --state .ocr-data/wiki-loginserver-generated --port 5491
-python integrations/wiki-preview/viewer.py --state .ocr-data/wiki-code-plan --port 5490
-```
-
-正文阅读服务需要当前已验证运行环境的 `markdown-it-py`，Mermaid 运行资源位于 `.ocr-data/wiki-mermaid/node_modules/mermaid/dist`（固定 `mermaid@11.15.0`，安装时禁用脚本）。这些是渲染依赖，不是模型依赖。阅读服务只读取已生成的 manifest/Markdown，不参与正文生成、不覆盖初始 Wiki，也不修改审查流程。
-
-新环境准备渲染依赖（已有依赖时不需重复安装）：
+## LoginServer 剩余模块执行
 
 ```powershell
-python -m pip install -r integrations/wiki-preview/requirements-reader.txt
-npm install --prefix .ocr-data/wiki-mermaid --cache .ocr-data/wiki-mermaid/npm-cache --ignore-scripts --no-audit --no-fund --save-exact mermaid@11.15.0
+.ocr-data/wiki-validation/venv/Scripts/python.exe integrations/wiki-preview/generate.py --scope LoginServer --remaining-modules --dry-run
+.ocr-data/wiki-validation/venv/Scripts/python.exe integrations/wiki-preview/generate.py --scope LoginServer --remaining-modules --concurrency 3
 ```
 
-规划模块独立于审查服务，提供本地 Git 差异和可选代码图依赖影响预览，没有模型调用、Wiki 正文生成、Wiki 发布或自动启动入口。规划运行时仅依赖 Python 标准库和本地 Git，不读取工作台模型设置或审查数据库。新增正文阅读服务只渲染已有结果，其渲染依赖见上节。
+新入口独立于旧文件页管线：先自动提取冻结源码，再由 DS 按职责归组；每个剩余函数恰好归属一个模块，所有非脚本文件必须有归属，`.h/.cpp` 不拆成两份说明。DS 可请求补读完整的跨类函数、头文件和协议定义，模块核对路径、精确符号及预算；缺失、未展开、解析不确定与运行时边界分别保留，禁止猜补。
+
+业务页只提供业务关系、文字过程、最终结果和必要缺口，不列函数清单。“类与函数”是独立导航入口，不能把所有说明合并到一篇“函数索引”长文档。按冻结源码中的类归属组织，自由函数按源文件归组；每个函数独立阅读。类目录只提供签名、已有模型摘要与链接。模型说明原文迁移，只调整标题层级和结构性跳转地址。简短函数有更少步骤和可选语义；不生成流程图或证据栏目。
+
+历史全局函数页可用 `.ocr-data/wiki-validation/venv/Scripts/python.exe integrations/wiki-preview/function_pages.py --scope LoginServer` 预检查结构迁移；加 `--publish` 才发布。该命令不调用模型、不生成或改写说明，已迁移则直接报告完成。当前 LoginServer 已迁移，无需重跑或重新生成。
+
+执行固定使用本机 AI Mana 的 `deepseek-flash`，不改 Review 设置、不允许回退为助手撰写。归组和函数格式输出使用非思考模式，其余步骤低推理；所有返回都须通过结构校验和模型源码检查。检查点绑定精确请求、源码和提示词，可用于失败后续跑；所有目标通过后才原子发布，失败保留当前页面。已完成同一冻结提交的扩展命令重复执行不会重生成。
+
+2026-10-19 已清空旧 LoginServer / AccountServer 正文、发布历史与正文中间结果。认可试点后，LoginServer 已扩展至 10 个业务页、28 个轻量类或源文件目录和 191 个独立函数页（其中新增函数 184 个）。此前 11 页布局中的全局函数正文长页已拆除，业务页和所有函数解释原文保留。AccountServer 保持为空。旧的 114 页 / 53 页统计和 AccountServer 中文修复状态均已失效，不得据此恢复或补生成。
+
+阅读入口：<http://127.0.0.1:5484/wiki?scope=LoginServer>。试点页：<http://127.0.0.1:5484/wiki/scopes/LoginServer/read/page/class-b32ed152dddbea81c404>。
+
+## 页面与生成结构
+
+同一个类的 `.h/.cpp` 归入同一个类目录，声明与实现对应同一份函数说明，重载使用独立身份、页面和锚点。“业务过程 / 类与函数”两个入口分别阅读业务和函数，函数页提供作用、文字流程和有意义的边界处理；不会把整类的全部说明堆进一篇正文。
+
+调用前提、参数/返回约定、状态变化、所有权、执行时序、并发、重试、关键依赖与不确定性按需展示。简单函数不要求填满栏目；类层面的共享信息不应在每个函数里重复。页面不生成流程图或“证据”“源码依据”章节，源码位置以“查看声明 / 查看实现”链接提供。
+
+`cpp_context.py` 从固定提交读取完整函数体、声明、成员信息、直接类内依赖和可取得的直接 include。无法匹配完整实现、解析有歧义或超预算时停止，不把截断片段当作完整函数。不可用依赖显式记录，模型不得补写其内部行为。
+
+`generate_functions.py` 使用固定 CodeWiki 的模型网关调用本机 AI Mana。类概述和每个函数的说明均由模型返回；模型再对照源码检查，必要时在模块内有限修正。结构、函数覆盖与源码对照检查通过后才统一发布，状态仍为 `awaiting_user_review`，不表示用户已经认可可读性。
+
+说明的步骤、边界和额外语义数量由函数规模控制；篇幅检查区分说明文字与行内代码标识符。装配器只负责固定 UI 标题、索引和源码链接，不补写解释性正文。
+
+旧 `--with-business` 入口已退役，固定业务组、函数选择清单及专用上下文构建器已删除。业务归组和补读源码由 `--remaining-modules` 流程调用 DeepSeek 决定，程序负责解析与校验。共用函数解析器位于 `cpp_context.py`。已发布正文和历史检查点保留；此次清理不触发重新生成。调用表达式只表示语法关系，不能自动视为已执行的直接调用。
+
+`business_guide.py` 调用同一 Wiki 模型网关生成各过程，再逐段对照源码检查。必要修正仍由模型完成；检查不通过时保留当前发布。每段的调用关系、步骤、结果及按需出现的未确认环节有数量与篇幅上限；不增加流程图和证据栏目。装配仅使用模型原文与固定 UI 标题、导航、源码链接。原有函数说明可复用同源码、提示词和模型的验证缓存。
+
+缺失源码须经过冻结 Git 树的相对路径与后缀查找，不能把当前上下文未选入的可用实现说成缺失。缺少生成的 RPC 头文件也不等于缺少 `.sdp` 定义或服务端实现。源码缺失、试点未展开和运行时路由/送达无法确认分别记录；异步提交不能表述为下游成功完成或持久化成功。
+
+业务请求给 DeepSeek 明确设置 `reasoning_effort=low` 并保留足够响应额度，避免推理耗尽额度后只返回空正文；此参数来自 [DeepSeek 官方接口说明](https://api-docs.deepseek.com/guides/thinking_mode/)。这不改变 Review 配置或 Wiki 的模型选择。空响应仍按失败处理，不能以推理内容代替正文。检查点只在请求上下文与提示词精确一致、模型来源一致且当前结构校验通过时复用。
+
+## 历史试点命令
+
+以下是原 LoginServer / LoginWhiteList 试点入口。扩展发布后不要运行单类命令覆盖当前范围，也不要为了绕过保护清空其他页；剩余模块执行使用上方新入口。接手或普通阅读均不构成自动重跑授权。
+
+```powershell
+.ocr-data/wiki-validation/venv/Scripts/python.exe integrations/wiki-preview/generate.py --scope LoginServer --class-name LoginWhiteList --header LoginServer/LoginWhiteList.h --implementation LoginServer/LoginWhiteList.cpp --dry-run
+.ocr-data/wiki-validation/venv/Scripts/python.exe integrations/wiki-preview/generate.py --scope LoginServer --class-name LoginWhiteList --header LoginServer/LoginWhiteList.h --implementation LoginServer/LoginWhiteList.cpp --concurrency 1
+```
+
+`--dry-run` 仅检查符号归组、实现覆盖及所选业务上下文，不加载模型、不写正文。正常命令支持请求缓存与失败后续跑；只有上下文、提示词、模型一致且通过当前校验的模型结果才可复用。旧的文件页/英文修复管线不是当前试点路径，普通批量生成默认已禁用。
+
+已有业务过程的页面，单类函数生成命令会拒绝降级覆盖，避免维护时丢失跨类业务层。旧 `--with-business` 参数会在读取源码或调用模型前明确报错。试点仍是有界源码阅读，调用方覆盖不代表整个系统已被证明完整；动态路由与真实运行结果以正文明确的边界为准。
+
+## 阅读与维护
+
+Review、Wiki 阅读和历史目录预览共用 Go 服务的 5484 端口。`/wiki/read/` 与 `/wiki/scopes/<scope>/read/` 读取本地发布清单，不调用模型。函数支持侧栏搜索、锚点定位、查看声明/实现和返回原函数；旧页面已删除时，不再恢复失效的阅读位置。
+
+正文数据在 `.ocr-data/wiki-loginserver-generated/`、`.ocr-data/wiki-accountserver-generated/`。模型取对应目录的 `generation-model.json`，当前试点为 AI Mana 的 `deepseek-flash`，与 Review 设置独立。源码固定在 `.ocr-data/wiki-zgame-plan/zgame`，提交为 `9052b9e77e681315a200a8489dfc6938d81024db`。阅读无需 Mermaid，也无需启动旧 Python 阅读服务。
+
+构建、启动：
+
+```powershell
+python scripts/toolchain/go.py build -o dist/ocr-web.exe ./cmd/ocr-web
+python scripts/workbench/start-web.py
+```
+
+已经运行时不要重复启动，Windows 不能直接覆盖运行中的二进制。替换服务前须确认实际 PID、无活动审查任务并保留凭据，不能输出凭据。
+
+清空工具为 `reset_generated.py --discard-all-generated`，只在用户明确要求丢弃旧正文时使用，不用于接手、检查或普通维护。它删除两个服务的生成正文、数据库、历史和中间结果，保留模型配置、本地工具、共享源码和代码图；新试点不会恢复清空前的正文。
+
+## 历史预览工具参考
+
+下面记录旧的零模型调用差异/影响预览与文件目录快照。它们继续只读可查，但不决定当前函数指南的归组与正文结构，也不构成任何生成授权。
 
 ## 固定的上游版本
 
 - CodeWiki：`7be8f702504cbd69aec6491a2e4e81f5311e0ba6`，MIT 许可证。
 - `patches/0001-incremental-graph.patch`：完整恢复解析数据、修正配置文件哈希、兼容旧索引，并从模型上下文排除解析缓存。
+- `patches/0002-code-catalog-plan.patch`：扩展文件目录、职责拆页与复杂功能候选规划。
+- `patches/0003-chinese-generation-defaults.patch`：将生成默认语言及提示模板改为简体中文。
 - `vendor-lock.json`：记录提交、补丁、依赖清单和修复后文件的 SHA256。
 - `requirements-windows-py312.lock`：此前实际验证的 Windows CPython 3.12.12 图分析环境版本。它不是跨平台锁文件，也不包含分发包的哈希；预览模块本身不安装、不加载这些依赖。
 
@@ -37,7 +94,7 @@ npm install --prefix .ocr-data/wiki-mermaid --cache .ocr-data/wiki-mermaid/npm-c
 python integrations/wiki-preview/prepare.py --source <CodeWiki本地克隆> --destination .ocr-data/codewiki-pinned
 ```
 
-目标目录必须不存在。仅校验时省略 `--destination`。使用已安装图分析依赖的 Python，加 `--verify-runtime` 可核对运行环境。未经单独授权，不运行上游 `wiki`、`watch` 或带默认生成行为的 `update` 命令。
+目标目录必须不存在。仅校验时省略 `--destination`。使用已安装图分析依赖的 Python，加 `--verify-runtime` 可核对运行环境。助手不得运行上游 `wiki`、`watch` 或带默认生成行为的 `update` 命令；环境维护不构成生成授权。
 
 ## 预览流程
 
@@ -136,21 +193,21 @@ python integrations/wiki-preview/viewer.py --state .ocr-data/wiki-preview-valida
 
 静态资源全部由本机服务提供，无 CDN、外部字体或远端请求。中文文案独立放在 `ui/i18n/zh-CN.json`；使用 JSON Unicode 转义保存，以符合独立模块的英文源码检查，不修改现有检查器豁免规则。界面显示正常中文。
 
-## CodeWiki 文件与复杂功能双目录规划
+## 历史只读规划：文件与复杂功能双目录
 
-此模式是固定 CodeWiki 的二次开发，核心实现位于补丁 `patches/0002-code-catalog-plan.patch`，扩展其 `WikiAgentWorkflow.plan_code_catalog` 和 `wiki/catalog/code_plan.py`。现有默认目录和正文生成流程不变。`prepare.py` 依次应用两份锁定补丁，校验扩展源码哈希；旧的已准备副本需要按新锁重新准备。运行时只加载已校验的纯规划模块，不导入 CodeWiki 的模型网关、数据库服务或生成器。
+此模式是固定 CodeWiki 的二次开发，核心实现位于补丁 `patches/0002-code-catalog-plan.patch`，扩展其 `WikiAgentWorkflow.plan_code_catalog` 和 `wiki/catalog/code_plan.py`。生成默认语言与模板另由第三份补丁调整为简体中文。`prepare.py` 按锁文件顺序应用三份补丁，校验扩展源码哈希；旧的已准备副本需要按新锁重新准备。运行时只加载已校验的纯规划模块，不导入 CodeWiki 的模型网关、数据库服务或生成器。
 
 ```powershell
 python integrations/wiki-preview/prepare.py --source <CodeWiki本地克隆> --destination <新的固定版副本目录>
 python integrations/wiki-preview/catalog_preview.py --repo . --branch main --commit <目标SHA> --graph <该SHA的CodeWiki图.sqlite3> --codewiki-source <新的固定版副本目录>
-python integrations/wiki-preview/viewer.py --state .ocr-data/wiki-code-plan --port 5490
+python scripts/workbench/start-web.py
 ```
 
-打开 <http://127.0.0.1:5490/planning>。默认状态目录 `.ocr-data/wiki-code-plan` 与原来的影响预览分开；其独立 `wiki-preview.sqlite3` 只存规划任务和不可变快照，不是 CodeWiki 正文数据库。没有调用 `save_doc_catalog` 或 `upsert_doc_page`，初始 Wiki 的目录和正文均保持原样。
+打开 <http://127.0.0.1:5484/wiki?view=plan>（工作台已启动时无需重复运行启动命令）。默认状态目录 `.ocr-data/wiki-code-plan` 与原来的影响预览分开；其独立 `wiki-preview.sqlite3` 只存规划任务和不可变快照，不是 CodeWiki 正文数据库。没有调用 `save_doc_catalog` 或 `upsert_doc_page`，初始 Wiki 的目录和正文均保持原样。
 
 规划采用完整冻结提交，不依赖提交差异：
 
-- **文件目录**：按源码路径建立文件总览；同名文件有独立稳定 ID，无 110 项截断。常见 Go/C/C++/Python/JS/TS/Java/Kotlin/Rust 等源码扩展名及 SQL、脚本参与规划，其他扩展名记录在 `excluded_files`，不能声称已覆盖整个 Git 树。`--scope` 可限制文件范围。
+- **文件目录**：按源码路径建立文件总览；同名文件有独立稳定 ID，无 110 项截断。常见 Go/C/C++/Python/JS/TS/Java/Kotlin/Rust 等源码扩展名及 SQL 参与规划，但须先应用前述脚本过滤规则，业务 Python 保留。其他扩展名记录在 `excluded_files`，不能声称已覆盖整个 Git 树。`--scope` 可限制文件范围。已有规划快照保留历史内容，不因过滤规则更新而重写。
 - **职责拆页候选**：默认达到 300 行或 12 个索引符号时尝试拆页，可用 `--large-lines` / `--large-symbols` 调整。依据限定符中的声明归属和名称主题词分组，不机械切行；保留每组符号和原始行范围。单个巨型符号或缺少分组依据时明确待人工拆分，不虚构职责。索引符号分配数量不代表行为完整性已验证。
 - **复杂功能候选**：复用已有 CodeWiki 的调用、路由、导入、继承、实现和配置关系，从入口沿有向依赖查找跨文件代码；入口不明显的循环也作为候选。每个候选保留符号、边和到文件页的链接，文件页也能返回相关功能。
 - 功能候选优先入口端点及 main/run/start/execute/handle 类入口，默认展开 80 个（`--feature-limit` 可调整）。其他候选入口记录在 `deferred_feature_entries`，页面显示数量和清单，不静默当作已覆盖。每个候选调查最多 4 跳、80 符号或 160 条边，截断时显式提示。
@@ -160,13 +217,13 @@ python integrations/wiki-preview/viewer.py --state .ocr-data/wiki-code-plan --po
 
 ## 验证
 
-### zgame 规划实例与正文生成要求
+### 历史 zgame 规划实例与生成策略记录
 
-已对 `zgame/master` 的冻结提交 `9052b9e77e681315a200a8489dfc6938d81024db` 运行独立规划，快照为 `39de705b8385fa00e1738069f8655cb1c9287cb9a77b1552192d3bf29a3ceace`。在 <http://127.0.0.1:5490/planning#39de705b8385fa00e1738069f8655cb1c9287cb9a77b1552192d3bf29a3ceace> 查看。
+已对 `zgame/master` 的冻结提交 `9052b9e77e681315a200a8489dfc6938d81024db` 运行独立规划，快照为 `39de705b8385fa00e1738069f8655cb1c9287cb9a77b1552192d3bf29a3ceace`。在 <http://127.0.0.1:5484/wiki/plan/planning#39de705b8385fa00e1738069f8655cb1c9287cb9a77b1552192d3bf29a3ceace> 查看。
 
 该轮使用 `.ocr-data/wiki-zgame-plan/zgame` 的独立检出，静态图为同目录旁的 `graph.sqlite3`，只写独立图与规划状态。检出通过本地对象 alternates 引用托管 bare 库以避免复制整个历史，不修改源仓库；如以后重建图，仍依赖该本地对象库可用。已经保存的规划快照阅读不依赖源检出。
 
-预览记录 `generation_policy`：目标服务 AI Mana、当前审查模型 `glm-5.3`、审查设置版本 4、`assistant_authorship=false`、`generation_enabled=false`。这是用户指定的后续正文生成要求，本轮未调用、未验证正文生成接口，也未把该要求冒称为已运行的模型连接。未来正文必须经 Wiki 工具调用该服务模型生成，助手只负责接入、运行和验证，不得撰写、补写或改写 Wiki 正文。
+该历史预览记录的 `generation_policy` 为：目标服务 AI Mana、当时审查模型 `glm-5.3`、审查设置版本 4、`assistant_authorship=false`、`generation_enabled=false`。该轮未调用、未验证正文生成接口，这些记录不证明当前模型连接或配置。Wiki 模型以对应产物目录的 `generation-model.json` 为准，与 Review 设置独立。当时要求由用户操作生成工具，禁止助手执行、验证或发布生成任务；该历史限制已被本轮明确的 LoginWhiteList 试点命令授权更新，仅限本文开头列出的试点范围。**助手始终不得自行撰写、翻译、补写或改写 Wiki 正文，所有正文仍必须由 Wiki 模块调用模型生成。** 历史策略与命令示例不构成其他业务的生成授权。
 
 本次模型调用 0，独立库的 `llm_run/doc_page/doc_catalog` 均为 0。2 项解析失败和未入图项保留在快照中，不能宣称已完整理解所有源码。初始 Wiki 和审查流程保持不变。运行摘要见 `.ocr-data/wiki-zgame-plan/validation.json`。
 

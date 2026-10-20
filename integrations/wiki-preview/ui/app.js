@@ -27,7 +27,7 @@ function message(value, error = false) {
 }
 
 async function get(url) {
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetch((document.documentElement.dataset.wikiBase || "") + url, { cache: "no-store" });
   if (!response.ok) throw new Error("Preview unavailable");
   return response.json();
 }
@@ -182,7 +182,7 @@ async function loadSnapshot() {
     history.replaceState(null, "", "#" + identity);
     const preview = data.preview;
     if (preview.plan_kind === "code_catalog") {
-      location.replace("/planning#" + identity);
+      location.replace((document.documentElement.dataset.wikiBase || "") + "/planning#" + identity);
       return;
     }
     pages = normalize(data);
@@ -204,7 +204,7 @@ async function loadSnapshot() {
       $("changes").append(row);
     }
     $("change-count").textContent = (preview.changed_files || []).length;
-    $("raw-json").href = "/api/snapshots/" + identity;
+    $("raw-json").href = (document.documentElement.dataset.wikiBase || "") + "/api/snapshots/" + identity;
     $("workspace").hidden = false;
     message(preview.catalog_required ? t("catalogRequired") : "");
   } catch {

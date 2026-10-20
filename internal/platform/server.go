@@ -44,6 +44,7 @@ type Server struct {
 }
 
 type page struct {
+	WikiScope, WikiPrefix                                    string
 	Page, Title, Error, CSRF, Query, Previous, Next, DataDir string
 	Saved, Archived, TokenPresent, ModelKeyPresent           bool
 	Counts                                                   Counts
@@ -130,8 +131,10 @@ func (s *Server) Handler() http.Handler {
 	r.StaticFS("/static", http.FS(static))
 	r.GET("/", s.overview)
 	r.GET("/wiki", s.wikiPage)
-	r.GET("/wiki/read/*path", s.wikiService("http://127.0.0.1:5491", "/wiki/read"))
-	r.GET("/wiki/plan/*path", s.wikiService("http://127.0.0.1:5490", "/wiki/plan"))
+	r.GET("/wiki/read/*path", s.wikiReader)
+	r.GET("/wiki/plan/*path", s.wikiPlanner)
+	r.GET("/wiki/scopes/:scope/read/*path", s.wikiReader)
+	r.GET("/wiki/scopes/:scope/plan/*path", s.wikiPlanner)
 	r.GET("/repositories", s.repositories)
 	r.POST("/repositories", s.saveRepository)
 	r.GET("/repositories/import", s.giteaRepositories)

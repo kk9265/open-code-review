@@ -19,9 +19,20 @@ body:has(.reader-layout) main { max-width: none; padding: 14px; margin: 0; borde
 .reader-tabs button { padding: 6px 10px; border: 1px solid #dce5e1; border-radius: 5px; background: white; cursor: pointer; }
 .reader-tabs button[aria-pressed="true"] { background: #e6f3ec; color: #187561; }
 .reader-page { display: block; padding: 7px; overflow-wrap: anywhere; text-decoration: none; font-size: 12px; }
+.reader-count { color: #71837c; font-size: 11px; margin-left: 5px; }
+.reader-article h1 code { font-size: 20px; white-space: normal; overflow-wrap: anywhere; }
 .reader-page[aria-current="page"] { background: #e6f3ec; border-radius: 5px; font-weight: 600; }
+.reader-function[aria-current="location"] { background: #e6f3ec; border-radius: 5px; font-weight: 600; }
+.reader-function { font-family: Consolas, monospace; }
+.reader-article h2 { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e7edea; scroll-margin-top: 16px; }
+.reader-article h2 code { font-size: 16px; white-space: normal; overflow-wrap: anywhere; }
+.guide-pilot { font-size: 13px; color: #64786f; background: #f4f7f6; padding: 8px 12px; border-radius: 5px; }
 .reader-file summary { display: list-item; }
 .reader-file summary a { display: inline; }
+#reader-functions .reader-page { display: flex; align-items: center; box-sizing: border-box; min-width: 0; white-space: nowrap; overflow: hidden; }
+#reader-functions summary .reader-page { display: inline-flex; width: calc(100% - 18px); vertical-align: middle; }
+#reader-functions .reader-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#reader-functions .reader-count { flex: none; }
 .reader-children { border-left: 2px solid #dce5e1; margin-left: 8px; padding-left: 7px; }
 .reader-article { min-width: 0; background: white; border: 1px solid #dce5e1; border-radius: 8px; padding: 22px; }
 .reader-breadcrumbs { font-size: 12px; color: #71837c; overflow-wrap: anywhere; padding-bottom: 12px; border-bottom: 1px solid #dce5e1; }

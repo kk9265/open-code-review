@@ -17,66 +17,35 @@ function highlightSource() {
   first.scrollIntoView({block: "center"});
 }
 
-async function enhanceReferences() {
-  if (!readerPath.startsWith("/page/")) return;
-  const response = await fetch(readerBase + "/i18n.json");
-  if (!response.ok) return;
-  const copy = await response.json();
-  const main = document.querySelector("main");
-  const sourceHeading = [...main.querySelectorAll("h2")].find((node) => node.textContent.trim() === "Sources");
-  let evidence;
-  if (sourceHeading) {
-    evidence = document.createElement("details");
-    evidence.className = "source-evidence";
-    const summary = document.createElement("summary");
-    evidence.append(summary);
-    let node = sourceHeading.nextElementSibling;
-    sourceHeading.replaceWith(evidence);
-    while (node && !/^H[12]$/.test(node.tagName)) {
-      const next = node.nextElementSibling;
-      evidence.append(node);
-      node = next;
-    }
-    const count = new Set(evidence.textContent.match(/\bS\d+\b/g) || []).size;
-    summary.textContent = copy.sourceEvidenceTitle.replace("{count}", String(count));
-  }
-  for (const link of main.querySelectorAll('a[href^="' + readerBase + '/source/"]')) {
-    if (evidence?.contains(link)) continue;
-    const label = link.textContent.trim();
-    if (!/^S\d+$/.test(label)) continue;
-    const url = new URL(link.href);
-    const range = /^#L(\d+)(?:-L(\d+))?$/.exec(url.hash);
-    if (!range) continue;
-    const file = decodeURIComponent(url.pathname.slice((readerBase + "/source/").length));
-    const lines = range[2] && range[2] !== range[1] ? range[1] + "–" + range[2] : range[1];
-    const description = copy.sourceReferenceLabel.replace("{file}", file).replace("{lines}", lines);
-    link.dataset.citation = label;
-    link.title = description;
-    link.setAttribute("aria-label", description);
-    link.textContent = "[" + label.slice(1) + "]";
-    const marker = document.createElement("sup");
-    marker.className = "source-reference";
-    link.replaceWith(marker);
-    marker.append(link);
-  }
-}
-
 highlightSource();
 window.addEventListener("hashchange", highlightSource);
-enhanceReferences().catch(() => {});
+function highlightFunction() {
+  for (const link of document.querySelectorAll(".reader-function")) {
+    const url = new URL(link.href);
+    if (url.pathname === location.pathname && url.hash === location.hash && url.hash) {
+      link.setAttribute("aria-current", "location");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  }
+}
+highlightFunction();
+window.addEventListener("hashchange", highlightFunction);
 
 function setupReaderNavigation() {
   const layout = document.querySelector(".reader-layout");
   if (!layout) return;
-  const key = "wiki-reader:" + layout.dataset.repository + ":" + layout.dataset.commit;
+  const key = "wiki-reader:" + layout.dataset.repository + ":" + (layout.dataset.scope || "") + ":" + layout.dataset.commit + ":" + (layout.dataset.mode || "");
   let state = {view: "files", query: "", expanded: []};
   try { state = {...state, ...JSON.parse(localStorage.getItem(key) || "{}")}; } catch {}
-  if (!["files", "features"].includes(state.view)) state.view = "files";
+  const views = [...layout.querySelectorAll("[data-reader-view]")].map((button) => button.dataset.readerView);
+  if (!views.includes(state.view)) state.view = "files";
   if (typeof state.query !== "string") state.query = "";
   if (!Array.isArray(state.expanded)) state.expanded = [];
   if (state.page !== readerPath) {
     if (document.querySelector('#reader-features [aria-current="page"]')) state.view = "features";
     if (document.querySelector('#reader-files [aria-current="page"]')) state.view = "files";
+    if (document.querySelector('#reader-functions [aria-current="page"]')) state.view = "functions";
   }
   state.page = readerPath;
   const search = document.getElementById("reader-search");
@@ -86,7 +55,7 @@ function setupReaderNavigation() {
     const query = search.value.toLocaleLowerCase().trim();
     state.query = search.value;
     let matches = 0;
-    for (const view of ["files", "features"]) {
+    for (const view of views) {
       const panel = document.getElementById("reader-" + view);
       panel.hidden = state.view !== view;
       for (const link of panel.querySelectorAll(".reader-page")) {
@@ -94,6 +63,10 @@ function setupReaderNavigation() {
         if (!link.hidden && state.view === view) matches++;
       }
       for (const group of panel.querySelectorAll(".reader-file")) {
+        const parent = group.querySelector("summary .reader-page");
+        if (parent?.dataset.search.toLocaleLowerCase().includes(query)) {
+          group.querySelectorAll(".reader-page").forEach((link) => { link.hidden = false; });
+        }
         group.hidden = ![...group.querySelectorAll(".reader-page")].some((link) => !link.hidden);
         if (!group.hidden) group.querySelector("summary .reader-page")?.removeAttribute("hidden");
         if (group.tagName === "DETAILS" && query && !group.hidden) group.open = true;

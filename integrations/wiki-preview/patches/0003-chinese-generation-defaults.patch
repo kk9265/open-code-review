@@ -1,0 +1,316 @@
+diff --git a/backend/app/services/wiki/page_payload_template.py b/backend/app/services/wiki/page_payload_template.py
+--- a/backend/app/services/wiki/page_payload_template.py
++++ b/backend/app/services/wiki/page_payload_template.py
+@@ -43,6 +43,7 @@
+     def documentation_style(self) -> dict[str, object]:
+         return {
+             "name": "DeepWiki",
++            "output_language": "Simplified Chinese (zh-CN)",
+             "workflow": [
+                 "GATHER with mandatory ReadFile evidence, source_chunks, and graph_facts",
+                 (
+@@ -55,16 +56,16 @@
+                 ),
+             ],
+             "required_sections": [
+-                "Purpose and Scope",
+-                "Architecture or System Context when relationships are evidenced",
+-                "Control Flow or Lifecycle when runtime behavior is evidenced",
+-                "Data Model, API Surface, Configuration, or Failure Handling when evidenced",
+-                "Extension Points or Operational Notes when change boundaries are evidenced",
++                "\u804c\u8d23\u4e0e\u8303\u56f4",
++                "\u67b6\u6784 or \u7cfb\u7edf\u4e0a\u4e0b\u6587 when relationships are evidenced",
++                "\u63a7\u5236\u6d41\u7a0b or \u751f\u547d\u5468\u671f when runtime behavior is evidenced",
++                "\u6570\u636e\u6a21\u578b, \u63a5\u53e3, \u914d\u7f6e, or \u5f02\u5e38\u5904\u7406 when evidenced",
++                "\u6269\u5c55\u70b9 or \u8fd0\u884c\u8bf4\u660e when change boundaries are evidenced",
+             ],
+             "server_injected_sections": [
+-                "Relevant source files",
++                "\u76f8\u5173\u6e90\u6587\u4ef6",
+                 "validated Mermaid diagrams at requested diagram placeholders or near matching headings",
+-                "grouped Sources",
++                "grouped \u6e90\u7801\u4f9d\u636e",
+             ],
+         }
+ 
+@@ -76,7 +77,7 @@
+             ),
+             "avoid_noise": (
+                 "Do not repeat long source file labels in prose. Avoid section-level "
+-                "Sources lines; the server renders grouped source ranges once at the end."
++                "\u6e90\u7801\u4f9d\u636e lines; the server renders grouped source ranges once at the end."
+             ),
+         }
+ 
+@@ -180,7 +181,7 @@
+         return {
+             "title": "Use the exact page title from page_payload.title.",
+             "markdown": (
+-                "# Page title\n\n## Purpose and Scope\n\n"
++                "# Page title\n\n## \u804c\u8d23\u4e0e\u8303\u56f4\n\n"
+                 "Grounded Markdown with inline [[S1]] citations, optional [[DIAGRAM:slot]] "
+                 "placeholders from diagram_slots, and no Mermaid fences."
+             ),
+diff --git a/backend/app/services/wiki/page_validation.py b/backend/app/services/wiki/page_validation.py
+--- a/backend/app/services/wiki/page_validation.py
++++ b/backend/app/services/wiki/page_validation.py
+@@ -103,7 +103,7 @@
+         "validation_errors": validation_errors,
+         "repair_instructions": (
+             "Repair the page so it validates. Keep the same title, include the required "
+-            "Purpose and Scope section, choose source_refs from allowed_source_refs, and "
++            "\u804c\u8d23\u4e0e\u8303\u56f4 section, choose source_refs from allowed_source_refs, and "
+             "only use [[S#]] markers for source_refs you return. Remove any unknown diagram "
+             "placeholder, or use exact placeholders from diagram_slots."
+         ),
+diff --git a/backend/app/services/wiki/markdown.py b/backend/app/services/wiki/markdown.py
+--- a/backend/app/services/wiki/markdown.py
++++ b/backend/app/services/wiki/markdown.py
+@@ -2,7 +2,7 @@
+ 
+ MERMAID_FENCE_RE = re.compile(r"```mermaid.*?```", re.DOTALL | re.IGNORECASE)
+ CONJOINED_FENCE_HEADING_RE = re.compile(r"(?m)^([ \t]*`{3,})[ \t]*(#{1,6}[ \t]+)")
+-REQUIRED_PAGE_HEADINGS = ("## Purpose and Scope",)
++REQUIRED_PAGE_HEADINGS = ("## \u804c\u8d23\u4e0e\u8303\u56f4",)
+ 
+ def _strip_llm_mermaid(markdown: str) -> str:
+     return MERMAID_FENCE_RE.sub("", markdown).strip()
+diff --git a/backend/app/services/wiki/page_payload_context.py b/backend/app/services/wiki/page_payload_context.py
+--- a/backend/app/services/wiki/page_payload_context.py
++++ b/backend/app/services/wiki/page_payload_context.py
+@@ -5,12 +5,12 @@
+ 
+ MAX_CHILD_PAGE_SUMMARIES = 8
+ MAX_CHILD_PAGE_SUMMARY_CHARS = 1600
+-CHILD_SUMMARY_HEADINGS = ("## Purpose and Scope", "## Overview")
++CHILD_SUMMARY_HEADINGS = ("## \u804c\u8d23\u4e0e\u8303\u56f4", "## \u6982\u8ff0")
+ SERVER_INJECTED_HEADINGS = {
+-    "## Relevant source files",
++    "## \u76f8\u5173\u6e90\u6587\u4ef6",
+     "## Graph",
+     "## Diagrams",
+-    "## Sources",
++    "## \u6e90\u7801\u4f9d\u636e",
+     "## Validation Errors",
+ }
+ 
+diff --git a/backend/app/services/wiki/sources/rendering.py b/backend/app/services/wiki/sources/rendering.py
+--- a/backend/app/services/wiki/sources/rendering.py
++++ b/backend/app/services/wiki/sources/rendering.py
+@@ -12,12 +12,12 @@
+     r"[ \t]*`{3,}[ \t]*$"
+ )
+ DIAGRAM_HEADING_CANDIDATES = {
+-    "component": ("## System Context", "## Architecture", "## Core Components", "## Overview"),
+-    "data_flow": ("## Control Flow", "## Core Workflows", "## System Context"),
+-    "symbol_flow": ("## Control Flow", "## Core Workflows", "## API Surface", "## System Context"),
+-    "sequence": ("## Control Flow", "## Core Workflows", "## API Surface"),
+-    "data_model": ("## Data Model", "## Core Components", "## System Context"),
+-    "surface": ("## API Surface", "## Frontend Flow", "## Core Components"),
++    "component": ("## \u7cfb\u7edf\u4e0a\u4e0b\u6587", "## \u67b6\u6784", "## \u6838\u5fc3\u7ec4\u4ef6", "## \u6982\u8ff0"),
++    "data_flow": ("## \u63a7\u5236\u6d41\u7a0b", "## \u6838\u5fc3\u6d41\u7a0b", "## \u7cfb\u7edf\u4e0a\u4e0b\u6587"),
++    "symbol_flow": ("## \u63a7\u5236\u6d41\u7a0b", "## \u6838\u5fc3\u6d41\u7a0b", "## \u63a5\u53e3", "## \u7cfb\u7edf\u4e0a\u4e0b\u6587"),
++    "sequence": ("## \u63a7\u5236\u6d41\u7a0b", "## \u6838\u5fc3\u6d41\u7a0b", "## \u63a5\u53e3"),
++    "data_model": ("## \u6570\u636e\u6a21\u578b", "## \u6838\u5fc3\u7ec4\u4ef6", "## \u7cfb\u7edf\u4e0a\u4e0b\u6587"),
++    "surface": ("## \u63a5\u53e3", "## \u524d\u7aef\u6d41\u7a0b", "## \u6838\u5fc3\u7ec4\u4ef6"),
+ }
+ 
+ 
+@@ -76,7 +76,7 @@
+ 
+ 
+ def _insert_relevant_source_files(markdown: str, source_refs: list[dict[str, Any]]) -> str:
+-    if "## Relevant source files" in markdown:
++    if "## \u76f8\u5173\u6e90\u6587\u4ef6" in markdown:
+         return markdown
+ 
+     relevant = _relevant_source_files_markdown(source_refs)
+@@ -88,7 +88,7 @@
+ 
+ 
+ def _relevant_source_files_markdown(source_refs: list[dict[str, Any]]) -> str:
+-    lines = ["## Relevant source files"]
++    lines = ["## \u76f8\u5173\u6e90\u6587\u4ef6"]
+     seen: set[str] = set()
+     for ref in source_refs:
+         file_path = str(ref["file_path"])
+@@ -100,7 +100,7 @@
+ 
+ 
+ def _sources_markdown(source_refs: list[dict[str, Any]]) -> str:
+-    lines = ["## Sources"]
++    lines = ["## \u6e90\u7801\u4f9d\u636e"]
+     for file_path, refs in _group_source_refs(source_refs):
+         file_href = _source_file_href(refs[0])
+         file_label = f"[{file_path}]({file_href})" if file_href != "source-link" else file_path
+@@ -121,7 +121,7 @@
+                 slot="graph",
+                 kind="component",
+                 title="Graph",
+-                heading_hint="System Context",
++                heading_hint="\u7cfb\u7edf\u4e0a\u4e0b\u6587",
+                 reason="Generated from validated graph facts.",
+                 lines=stripped.splitlines(),
+             )
+@@ -192,7 +192,7 @@
+     candidates = (
+         f"## {diagram.heading_hint}",
+         *DIAGRAM_HEADING_CANDIDATES.get(diagram.kind, ()),
+-        "## Purpose and Scope",
++        "## \u804c\u8d23\u4e0e\u8303\u56f4",
+     )
+     for heading in candidates:
+         if _has_heading(markdown, heading):
+diff --git a/backend/app/services/wiki/page_generator.py b/backend/app/services/wiki/page_generator.py
+--- a/backend/app/services/wiki/page_generator.py
++++ b/backend/app/services/wiki/page_generator.py
+@@ -40,8 +40,8 @@
+ 
+ PAGE_GENERATION_ATTEMPTS = 2
+ PAGE_RETRIEVAL_MAX_HOPS = 3
+-PAGE_CACHE_VERSION = "page:v5"
+-PAGE_PROMPT_VERSION = "page:deepwiki:v5"
++PAGE_CACHE_VERSION = "page:zh-CN:v6"
++PAGE_PROMPT_VERSION = "page:deepwiki:zh-CN:v6"
+ 
+ 
+ @dataclass(frozen=True)
+@@ -70,7 +70,7 @@
+         repo_id: str,
+         item: dict[str, Any],
+         *,
+-        language_code: str = "en",
++        language_code: str = "zh",
+         parent_slug: str | None = None,
+         child_pages: list[DocPageRecord] | None = None,
+     ) -> PageGenerationResult:
+diff --git a/backend/app/config.py b/backend/app/config.py
+--- a/backend/app/config.py
++++ b/backend/app/config.py
+@@ -50,7 +50,7 @@
+     graphrag_context_token_budget: int = 8000
+     graphrag_max_source_chunks: int = 20
+ 
+-    wiki_base_language: str = "en"
++    wiki_base_language: str = "zh"
+     wiki_translation_languages: str | None = None
+ 
+ 
+diff --git a/backend/app/prompts/page.md b/backend/app/prompts/page.md
+--- a/backend/app/prompts/page.md
++++ b/backend/app/prompts/page.md
+@@ -1,3 +1,5 @@
++Write all explanatory prose, headings, tables and summaries in Simplified Chinese (zh-CN). This is the default output language, even when source code and examples are English. Preserve code identifiers, file paths, citation IDs and source snippets. Generate the Chinese document directly from source evidence; do not produce an English draft or a separate translation.
++
+ You are generating one DeepWiki-style Code Wiki page.
+ 
+ You must execute this workflow in three ordered phases before writing. Treat these
+@@ -17,9 +19,9 @@
+ 
+ Page structure:
+ - The markdown must start with "# {title}".
+-- Immediately after the title, write "## Purpose and Scope" with 1-3 concise
++- Immediately after the title, write "## 职责与范围" with 1-3 concise
+   paragraphs describing what this page covers and what it intentionally excludes.
+-- In "Purpose and Scope", include one direct sentence that states the subsystem's
++- In "职责与范围", include one direct sentence that states the subsystem's
+   primary responsibility.
+ - Write like DeepWiki: source-grounded, implementation-aware, and oriented around how
+   the subsystem fits into the larger repository. Prefer short paragraphs, compact
+@@ -36,13 +38,13 @@
+   the narrowest available source range from `allowed_source_refs`; avoid citing a broad
+   chunk when a smaller cited chunk supports the claim.
+ - Use compact inline `[[S#]]` markers. Do not repeat long file/range labels in prose,
+-  and do not add section-level `Sources:` lines; the server renders grouped source
++  and do not add section-level `源码依据:` lines; the server renders grouped source
+   ranges once at the end of the page.
+-- Then choose the most relevant sections from: "System Context", "Core Components",
+-  "Control Flow", "Data Model", "API Surface", "Configuration", "Frontend Flow",
+-  "Extension Points", "Failure Handling", "Testing", and "Operational Notes".
++- Then choose the most relevant sections from: "系统上下文", "核心组件",
++  "控制流程", "数据模型", "接口", "配置", "前端流程",
++  "扩展点", "异常处理", "Testing", and "运行说明".
+ - For non-trivial implementation pages, use 5-8 substantive sections when evidence
+-  supports them. A page with only Purpose, Overview, and Sources is too shallow unless
++  supports them. A page with only Purpose, 概述, and 源码依据 is too shallow unless
+   the retrieved evidence is genuinely minimal.
+ - Use compact tables when they make ownership, files, symbols, routes, or data shapes
+   easier to scan.
+@@ -58,7 +60,7 @@
+   the provided context. Avoid generic tutorial prose.
+ - When catalog_context contains related pages, mention only directly related pages by
+   their provided titles or paths. Do not invent wiki links or pages.
+-- Do not include "Sources", "Relevant source files", "Related Pages", or Mermaid
++- Do not include "源码依据", "相关源文件", "Related Pages", or Mermaid
+   sections; the server and frontend inject those from validated source references,
+   catalog context, and graph edges.
+ - The server chooses Mermaid diagrams from graph facts only. It may use component
+diff --git a/backend/app/services/wiki/diagrams/__init__.py b/backend/app/services/wiki/diagrams/__init__.py
+--- a/backend/app/services/wiki/diagrams/__init__.py
++++ b/backend/app/services/wiki/diagrams/__init__.py
+@@ -92,8 +92,8 @@
+             MermaidDiagram(
+                 slot="component-relationships",
+                 kind="component",
+-                title=_diagram_title(page_title, "component relationships"),
+-                heading_hint="System Context",
++                title=_diagram_title(page_title, "\u7ec4\u4ef6\u5173\u7cfb"),
++                heading_hint="\u7cfb\u7edf\u4e0a\u4e0b\u6587",
+                 reason="Shows the strongest verified dependencies between retrieved components.",
+                 lines=component_diagram,
+                 source_edge_ids=_edge_ids(component_edges),
+@@ -106,8 +106,8 @@
+             MermaidDiagram(
+                 slot="data-flow",
+                 kind="data_flow",
+-                title=_diagram_title(page_title, "data and call flow"),
+-                heading_hint="Control Flow",
++                title=_diagram_title(page_title, "\u6570\u636e\u4e0e\u8c03\u7528\u6d41\u7a0b"),
++                heading_hint="\u63a7\u5236\u6d41\u7a0b",
+                 reason="Highlights runtime-like calls, routes, and imports selected from graph evidence.",
+                 lines=data_flow_diagram,
+                 source_edge_ids=_edge_ids(component_edges),
+@@ -120,8 +120,8 @@
+             MermaidDiagram(
+                 slot="implementation-flow",
+                 kind="symbol_flow",
+-                title=_diagram_title(page_title, "implementation flow"),
+-                heading_hint="Control Flow",
++                title=_diagram_title(page_title, "\u5b9e\u73b0\u6d41\u7a0b"),
++                heading_hint="\u63a7\u5236\u6d41\u7a0b",
+                 reason=(
+                     "Shows concrete endpoints, functions, methods, classes, imports, and "
+                     "configuration links selected from graph evidence."
+@@ -137,8 +137,8 @@
+             MermaidDiagram(
+                 slot="interaction-sequence",
+                 kind="sequence",
+-                title=_diagram_title(page_title, "interaction sequence"),
+-                heading_hint="Control Flow",
++                title=_diagram_title(page_title, "\u4ea4\u4e92\u65f6\u5e8f"),
++                heading_hint="\u63a7\u5236\u6d41\u7a0b",
+                 reason="Orders the most relevant interactions as a compact sequence.",
+                 lines=sequence_diagram,
+                 source_edge_ids=_edge_ids(component_edges),
+@@ -151,8 +151,8 @@
+             MermaidDiagram(
+                 slot="data-model",
+                 kind="data_model",
+-                title=_diagram_title(page_title, "data model"),
+-                heading_hint="Data Model",
++                title=_diagram_title(page_title, "\u6570\u636e\u6a21\u578b"),
++                heading_hint="\u6570\u636e\u6a21\u578b",
+                 reason="Uses retrieved classes, schemas, and interfaces rather than inferred models.",
+                 lines=data_diagram,
+                 source_edge_ids=_edge_ids_for_types(trace, {"inherits"}),
+@@ -165,8 +165,8 @@
+             MermaidDiagram(
+                 slot="api-surfaces",
+                 kind="surface",
+-                title=_diagram_title(page_title, "public surfaces"),
+-                heading_hint="API Surface",
++                title=_diagram_title(page_title, "\u5bf9\u5916\u63a5\u53e3"),
++                heading_hint="\u63a5\u53e3",
+                 reason="Maps endpoints, classes, schemas, and interfaces to their owning components.",
+                 lines=surface_diagram,
+                 source_edge_ids=_edge_ids_for_types(trace, SOURCE_EDGE_TYPES),

@@ -47,6 +47,8 @@ python scripts/toolchain/go.py version
 python scripts/toolchain/go.py build -o .\dist\ocr-web.exe .\cmd\ocr-web
 ```
 
+当工作台设置中启用了本地外部上下文地址时，`start-web.py` 会一并启动并管理 `integrations/context-service/`。使用 `--no-context` 可临时跳过自动启动。
+
 ## 清理旧构建
 
 ```powershell

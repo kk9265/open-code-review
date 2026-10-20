@@ -8,7 +8,8 @@
   "artifacts": {
     "patches/0001-incremental-graph.patch": "bacc3ec63f99f848401d2fae4b9b29662bc9c338af8c63c56e196d7e45762493",
     "requirements-windows-py312.lock": "9c823f92db2b057be006479f61d181c9fd2f67a877aec5a739cb6d2aa8618ff3",
-    "patches/0002-code-catalog-plan.patch": "619b5ba72d632e9d220f25fa94914d1a435468007d71fc129580ff048bc50e1d"
+    "patches/0002-code-catalog-plan.patch": "619b5ba72d632e9d220f25fa94914d1a435468007d71fc129580ff048bc50e1d",
+    "patches/0003-chinese-generation-defaults.patch": "990e4dee8c44191813ba0a70dd70ad3aa348c80d22a5067499402bb10c4ad404"
   },
   "patched_files": {
     "backend/app/services/analysis_pipeline.py": "1e49dbecfb9b4d0f29341b27c360bae552fdcec631b38bfe36a0462d865a9951",
@@ -20,10 +21,20 @@
     "backend/app/services/incremental/updater.py": "3ada49595bfc7f460b4a593ddaf9ad583b48ba15486f08d72781f393ed313f30",
     "tests/backend/test_incremental_graph_fidelity.py": "4c04c6f109750f9926a0feaec7eb643feb04ccd8e30e653b2c3bde8ad6717ee5",
     "backend/app/services/wiki/catalog/code_plan.py": "0d800de8e160373c9762f9c12a2062b76f79c281c9926020022bda84379c4212",
-    "backend/app/services/wiki/agent_workflow.py": "d882ff1265e411dc12d86b80bd195ab31e9998706de3d0833f36a1bad588cbca"
+    "backend/app/services/wiki/agent_workflow.py": "d882ff1265e411dc12d86b80bd195ab31e9998706de3d0833f36a1bad588cbca",
+    "backend/app/services/wiki/page_payload_template.py": "f120e933637b62f96352b28927a18ccf8ac533fb34799894c9fcdd33b07d8930",
+    "backend/app/services/wiki/page_validation.py": "e2214fe38ec332ac8b4825409f375ec1e0cfbff63dbd67838d0d24c695129b0b",
+    "backend/app/services/wiki/markdown.py": "ba170250b3b7f779cd4effb6f5ff7bfa33aa219600c33ee3a81561ac760c0515",
+    "backend/app/services/wiki/page_payload_context.py": "c602cc76d1a23cf00cfd3cc787c55a809b53f9a07f72841488357a0a5b117835",
+    "backend/app/services/wiki/sources/rendering.py": "d672e417cb380d2beba8e166dd116e1abcea3f6239c88d4ebdfedf23d414dafb",
+    "backend/app/services/wiki/page_generator.py": "56c3a79ba1c4acf3e0c32b8014c08798d8defd814db6e0f1e643a09c53c2bb9f",
+    "backend/app/config.py": "5d663c23d96015edcb421f6a3d66ec7ea2e84089cad8501ab158c2fb89a4f5d0",
+    "backend/app/prompts/page.md": "77511319f5fe9e8d7a1b35bc23e1d596ff9fe00f6cc8914f3066a861714bb81a",
+    "backend/app/services/wiki/diagrams/__init__.py": "843ef6f6ffe93314570dacfa84f8f37b23f253bdb83a83351c7e1a331445c434"
   },
   "patches": [
     "patches/0001-incremental-graph.patch",
-    "patches/0002-code-catalog-plan.patch"
+    "patches/0002-code-catalog-plan.patch",
+    "patches/0003-chinese-generation-defaults.patch"
   ]
 }

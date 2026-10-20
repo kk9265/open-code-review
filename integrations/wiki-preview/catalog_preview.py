@@ -17,6 +17,7 @@ from git_data import (
 from graph_data import freeze_graph
 from prepare import verify_checkout
 from store import Store
+from catalog_filter import filtered_plan
 from worker import HERE, verify_lock
 
 EXTENSION = "backend/app/services/wiki/catalog/code_plan.py"
@@ -63,7 +64,7 @@ def build_preview(
         {"path": path, "line_count": item["line_count"]}
         for path, item in metadata.items()
     ]
-    plan = planner(
+    plan = filtered_plan(planner,
         list(graph["nodes"].values()),
         graph["edges"],
         files,
@@ -81,6 +82,7 @@ def build_preview(
             "lock": verify_lock(),
             "adapter": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "git_data": hashlib.sha256((HERE / "git_data.py").read_bytes()).hexdigest(),
+            "file_filter": hashlib.sha256((HERE / "catalog_filter.py").read_bytes()).hexdigest(),
         }
     )
     inputs = {

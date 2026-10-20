@@ -1,5 +1,7 @@
 {
   "Wiki": "Wiki",
+  "Wiki service": "Wiki 服务",
+  "Wiki output is not ready or failed integrity verification.": "Wiki 数据尚未准备好或未通过完整性校验。",
   "Loading Wiki metadata": "正在读取 Wiki 版本",
   "Wiki views": "Wiki 视图",
   "Wiki documentation": "Wiki 正文",

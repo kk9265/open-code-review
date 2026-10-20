@@ -19,6 +19,8 @@ python scripts/context/manage.py --config .ocr-context/config.json serve
 
 默认仅监听 `127.0.0.1:5487`。在工作台“设置 → 外部上下文”填入 `http://127.0.0.1:5487`；留空停用。配置中的 `source` 必须指向已登记的本地仓库，而不是网络地址。配置文件在启动时读取，修改后重启服务。
 
+日常通过 `python scripts/workbench/start-web.py` 启动工作台时，只要上述地址已在设置中启用，启动器会自动启动本地上下文服务，并在工作台退出时关闭由本次启动的服务。若该地址已有兼容服务，启动器会复用它。仅在单独维护或排障时才需要手动运行 `serve`；可用 `--no-context` 临时禁止自动启动。
+
 首次大仓库索引建议预热，避免占用审查时间：
 
 ```powershell
